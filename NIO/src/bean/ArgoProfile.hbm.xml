@@ -1,0 +1,82 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<!-- Generated 2013-5-5 13:44:40 by Hibernate Tools 3.4.0.CR1 -->
+<hibernate-mapping>
+    <class name="bean.ArgoProfile" table="ARGO_PROFILE">
+        <composite-id name="id" class="bean.ArgoProfileId">
+            <key-property name="platformNumber" type="string">
+                <column name="PLATFORM_NUMBER" length="50" />
+            </key-property>
+            <key-property name="cycleNumber" type="string">
+                <column name="CYCLE_NUMBER" length="50" />
+            </key-property>
+            <key-property name="dataMode" type="string">
+                <column name="DATA_MODE" length="50" />
+            </key-property>
+        </composite-id>
+        <property name="projectName" type="string">
+            <column name="PROJECT_NAME" length="50">
+                <comment>&#184;&#195;&#184;&#161;&#177;&#234;&#203;&#249;&#202;&#244;&#181;&#196;&#207;&#238;&#196;&#191;&#195;&#251;&#179;&#198;</comment>
+            </column>
+        </property>
+        <property name="piName" type="string">
+            <column name="PI_NAME" length="50">
+                <comment>&#184;&#195;&#184;&#161;&#177;&#234;&#203;&#249;&#202;&#244;&#181;&#196;&#184;&#186;&#212;&#240;&#200;&#203;</comment>
+            </column>
+        </property>
+        <property name="direction" type="string">
+            <column name="DIRECTION" length="50">
+                <comment>
+                &#198;&#202;&#195;&#230;&#185;&#219;&#178;&#226;&#181;&#196;&#183;&#189;&#207;&#242;&#163;&#168;A&#206;&#170;&#201;&#207;&#201;&#253;&#202;&#177;&#178;&#201;&#209;&#249;&#163;&#187;D&#206;&#170;&#207;&#194;&#179;&#193;&#202;&#177;&#178;&#201;&#209;&#249;&#163;&#169;</comment>
+            </column>
+        </property>
+        <property name="dataCentre" type="string">
+            <column name="DATA_CENTRE" length="10">
+                <comment>&#198;&#202;&#195;&#230;&#184;&#252;&#208;&#194;&#163;&#168;&#185;&#219;&#178;&#226;&#163;&#169;&#200;&#213;&#198;&#218;</comment>
+            </column>
+        </property>
+        <property name="dateCreation" type="date">
+            <column name="DATE_CREATION">
+                <comment>
+                &#202;&#253;&#190;&#221;&#206;&#196;&#188;&#254;&#181;&#196;&#180;&#180;&#189;&#168;&#200;&#213;&#198;&#218;&#163;&#168;&#214;&#184;&#207;&#194;&#212;&#216;&#181;&#196;&#212;&#173;&#202;&#188;netcdf&#206;&#196;&#188;&#254;&#163;&#169;</comment>
+            </column>
+        </property>
+        <property name="dateUpdate" type="date">
+            <column name="DATE_UPDATE" />
+        </property>
+        <property name="dcReference" type="string">
+            <column name="DC_REFERENCE" length="50" />
+        </property>
+        <property name="dataStateIndicator" type="string">
+            <column name="DATA_STATE_INDICATOR" length="10" />
+        </property>
+        <property name="instReference" type="string">
+            <column name="INST_REFERENCE" length="50">
+                <comment>&#184;&#161;&#177;&#234;&#181;&#196;&#210;&#199;&#198;&#247;&#192;&#224;&#208;&#205;</comment>
+            </column>
+        </property>
+        <property name="wmoInstType" type="string">
+            <column name="WMO_INST_TYPE" length="10" />
+        </property>
+        <property name="juld" type="big_decimal">
+            <column name="JULD" precision="10" scale="3" />
+        </property>
+        <property name="juldQc" type="java.lang.Short">
+            <column name="JULD_QC" precision="3" scale="0" />
+        </property>
+        <property name="juldLocation" type="big_decimal">
+            <column name="JULD_LOCATION" precision="10" scale="3" />
+        </property>
+        <property name="latitude" type="big_decimal">
+            <column name="LATITUDE" precision="10" scale="3">
+                <comment>&#185;&#219;&#178;&#226;&#198;&#202;&#195;&#230;&#181;&#196;&#206;&#179;&#182;&#200;</comment>
+            </column>
+        </property>
+        <property name="longitude" type="big_decimal">
+            <column name="LONGITUDE" precision="10" scale="3">
+                <comment>&#185;&#219;&#178;&#226;&#198;&#202;&#195;&#230;&#181;&#196;&#190;&#173;&#182;&#200;</comment>
+            </column>
+        </property>
+    </class>
+</hibernate-mapping>

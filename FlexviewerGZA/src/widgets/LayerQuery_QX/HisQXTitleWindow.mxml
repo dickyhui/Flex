@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   xmlns:supportClasses="com.esri.ags.skins.supportClasses.*" 
+			   width="280" height="150"
+			   creationComplete="titlewindow1_creationCompleteHandler(event)">
+	<s:layout>
+		<supportClasses:AttachmentLayout/>
+	</s:layout>
+
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			[Bindable]
+			public var hisorder:ArrayCollection = new ArrayCollection();//历史预报时次
+			public var hisQX:String = "";//历史预报数据路径
+			
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				var ftArr:Array = hisQXDate.text.split(" ")[0].split("/");
+				var temp:String = hisQX;
+				temp = temp.replace("yyyy",ftArr[0]).replace("MM",ftArr[1]).replace("dd",ftArr[2]).replace("xx",hisQXTime.selectedItem.toString());
+				navigateToURL(new URLRequest(encodeURI(temp)),'_blank');
+			}
+
+			protected function titlewindow1_creationCompleteHandler(event:FlexEvent):void
+			{
+				hisQXTime.selectedIndex = -1;
+				hisQXTime.selectedIndex = 0;
+			}
+
+		]]>
+	</fx:Script>
+
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:VGroup width="100%" height="100%" verticalAlign="middle" horizontalAlign="center">
+		<s:HGroup width="100%"  verticalAlign="middle" horizontalAlign="center">
+			<s:Label text="起报时间:" color="#A8F9B5" />
+			<mx:DateField id="hisQXDate" width="160" selectedDate="{new Date()}" formatString="YYYY/MM/DD 20:00:00" editable="false"  fontSize="13"/>
+		</s:HGroup>
+		<s:HGroup width="100%"  verticalAlign="middle" horizontalAlign="center">
+			<s:Label text="预报时次:"  color="#A8F9B5" />
+			<s:DropDownList id="hisQXTime" width="100" dataProvider="{hisorder}" selectedIndex="0" fontSize="13" />
+		</s:HGroup>
+		<s:Button label="显示" color="#A8F9B5"  width="100" click="button1_clickHandler(event)" />
+	</s:VGroup>
+</s:TitleWindow>

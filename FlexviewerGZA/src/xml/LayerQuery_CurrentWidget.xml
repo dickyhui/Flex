@@ -1,0 +1,50 @@
+<?xml version="1.0" ?>
+<configuration>
+	<Order>
+		<param>
+			0
+			,3
+			,6
+			,9
+			,12
+			,15
+			,18
+			,21
+			,24
+			,27
+			,30
+			,33
+			,36
+			,39
+			,42
+			,45
+			,48
+			,51
+			,54
+			,57
+			,60
+			,63
+			,66
+			,69
+			,72
+		</param>
+	</Order>
+	<HisOrder>
+		<param>
+			1
+			,2
+			,3
+			,4
+			,5
+			,6
+			,7
+			,8
+			,9
+			,10
+			,11
+			,12
+		</param>
+	</HisOrder>
+	<HisCurrent>  </HisCurrent>
+	<ServerIP> 202.121.180.148 </ServerIP>
+</configuration>

@@ -1,0 +1,40 @@
+<?xml version="1.0" ?>
+<configuration>
+	<itemE>
+		<name>YBHLD_A</name>
+		<param>
+			YXBG
+			,PFZQ
+			,PJZQ
+			,&PJBX
+			,&PFBX
+			,XFS
+			,YFS
+		</param>
+	</itemE>
+	<itemC>
+		<name>YBHLD_A</name>
+		<param>
+			有效波高
+			,谱峰周期
+			,平均周期
+			,平均波向
+			,谱峰波向
+			,X方向风速
+			,Y方向风速
+		</param>
+	</itemC>
+	<itemU>
+		<name>YBHLD_A</name>
+		<param>
+			m
+			,s
+			,s
+			,°
+			,°
+			,m/s
+			,m/s
+		</param>
+	</itemU>
+	<ServerIP> 202.121.180.148 </ServerIP>
+</configuration>

@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+///////////////////////////////////////////////////////////////////////////
+//ProductBase
+//作为可伸缩的产品小部件里面功能的父组件
+//提供控件头可视元素（返回按钮和标题）
+//实现基本的事件和视图切换功能
+//子组件可重写以下三个方法：
+//	openProductFunctionEveryTime：每次切换到此组件时执行的方法
+//	openProductFunctionOnce：第一次切换到此组件时执行的方法
+//	closeProductFunction：每次关闭此组件时执行的方法
+//
+//林贤辉
+//2013-03-22
+///////////////////////////////////////////////////////////////////////////
+-->
+<s:ItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				xmlns:s="library://ns.adobe.com/flex/spark" 
+				xmlns:mx="library://ns.adobe.com/flex/mx" 
+				width="100%" height="100%"
+				autoDrawBackground="false"
+				visible="false"
+				dataChange="dataChangeHandler(event)">
+	<fx:Script>
+		<![CDATA[
+			import com.esri.viewer.AppEvent;
+			
+			import mx.controls.Label;
+			import mx.controls.LinkButton;
+			import mx.core.IVisualElement;
+			import mx.events.FlexEvent;
+			
+			import spark.components.BorderContainer;
+			
+			import widgets.HeaderController.HeaderItem;
+			
+			//标题
+			[Bindable]
+			public var itemTitle:String;
+			
+			[Embed(source="assets/images/Error.png")]
+			public static var errorLogo:Class;
+			
+			private var once:Boolean=true;
+			//每次切换到此组件时执行的方法
+			public function openProductFunctionEveryTime():void{};
+			//第一次切换到此组件时执行的方法
+			public function openProductFunctionOnce():void{};
+			//从main状态切换过来执行的函数
+			public function changeFunction():void
+			{
+				//只执行一次
+				if(once)
+				{
+					once=false;
+					
+					openProductFunctionOnce();
+				}
+				openProductFunctionEveryTime();
+			}
+			
+			protected function goBack_clickHandler(event:MouseEvent):void
+			{
+				//切换到主面板视图
+				AppEvent.dispatch(AppEvent.CHANGEPRODUCTVIEW,"");
+			}
+			
+			
+			[Bindable]
+			private var headerItem:HeaderItem;
+			//每次关闭此组件时执行的方法
+			public function closeProductFunction():void{};
+			//绑定数据改变触发事件(主要是可视状态改变)
+			protected function dataChangeHandler(event:FlexEvent):void
+			{
+				headerItem = data as HeaderItem;
+				
+				if(headerItem.open == false)
+				{
+					if(this.visible == true)
+					{
+						closeProductFunction();
+						this.visible = false;
+					}
+				}
+				else
+				{
+					//切换到此功能面板视图
+					AppEvent.dispatch(AppEvent.CHANGEPRODUCTVIEW,this);
+					//从其他视图切换过来执行的函数
+					changeFunction();
+				}
+			}
+			
+			//If you have already defined children within the super class, 
+			//these will be removed by the subclass by default. 
+			//To avoid this, 
+			//you have to override the setter method mxmlContent of the subclass 
+			//or build your own custom template component.
+			override public function set mxmlContent(value:Array):void
+			{
+				var adding:Boolean = true;
+				var index:int = 0;
+				while ( adding ) {
+					var ive:IVisualElement = null;
+					try { 
+						ive = super.getElementAt(index); 
+					}
+					catch (e:Error) {
+					}
+					
+					if ( ive != null ) {
+						value.unshift(ive);
+						index++;
+					}else{
+						adding = false;
+					}
+				}
+				super.mxmlContent = value;
+			}
+		]]>
+	</fx:Script>
+	<s:BorderContainer top="5" width="230" left="10" height="35"
+					   styleName="BorderContainer" borderWeight="2" >
+		<s:Label x="10" y="10"  styleName="LabelTitle" text="{itemTitle}" />
+		<mx:LinkButton id="goBack" label="返回"
+					   y="3" right="10" click="goBack_clickHandler(event)" />
+	</s:BorderContainer>
+</s:ItemRenderer>

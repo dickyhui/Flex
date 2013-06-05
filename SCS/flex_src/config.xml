@@ -1,0 +1,56 @@
+<?xml version="1.0" ?>
+<!--
+////////////////////////////////////////////////////////////////////////////////
+//
+// Read more about ArcGIS Viewer for Flex - http://links.esri.com/flexviewer
+//
+////////////////////////////////////////////////////////////////////////////////
+-->
+<configuration>
+    <title>海监执法海洋环境预报综合信息服务平台</title>
+    <subtitle></subtitle>
+    <logo>assets/images/scsLogo.png</logo>
+    <style>
+<!--textColor,backgroundColor,rolloverColor,selectionColor,titleColor,applicationBackgroundColor-->
+        <colors>0xFFFFFF,0x282828,0x1767d4,0xdd6e1d,0xFFD700</colors>
+        <alpha>1</alpha>
+        <subtitlefont size="15" ></subtitlefont>
+        <titlefont size="21" ></titlefont>
+    </style>
+    <!-- replace the following url with your own geometryservice -->
+<!--     <geometryservice url="http://tasks.arcgisonline.com/ArcGIS/rest/services/Geometry/GeometryServer" /> -->
+
+    <!-- UI elements -->
+    <widget left="10"  top="60"    config="widgets/Navigation/NavigationWidget.xml" url="widgets/Navigation/NavigationWidget.swf"/>
+	<widget left="0"   top="0"     config="widgets/HeaderController/HeaderControllerWidget.xml" url="widgets/HeaderController/HeaderControllerWidget.swf"/>
+	<widget right="0"  top="54" 	config="widgets/Products/ProductsWidget.xml" url="widgets/Products/ProductsWidget.swf"/>
+    <widget left="0" bottom="60" 	config="widgets/ColorRamp/ColorRampWidget.xml" url="widgets/ColorRamp/ColorRampWidget.swf"/>
+    <widget left="3" bottom="3"    config="widgets/Coordinate/CoordinateWidget.xml" url="widgets/Coordinate/CoordinateWidget.swf"/>
+    
+    <header label="台风警报" icon="assets/images/headerTFJB.png" config="testConfig" url="typhoon"/>
+    <header label="近海预报" icon="assets/images/headerJHYB.png" config="testConfig" url="seaArea"/>
+    <header label="观测实况" icon="assets/images/headerGCSK.png" config="testConfig" url="observationSite"/>
+    <header label="执法海域" icon="assets/images/headerZFHY.png" config="testConfig" url="lawEnforceSeaArea"/>
+    <header label="预报单" icon="assets/images/headerYBD.png" config="testConfig" url="predictionPaper"/>
+    <header label="数值产品" icon="assets/images/headerSZCP.png" config="testConfig" url="numericalPrediction"/>
+    
+    <map wraparound180="true" initialextent="9000000 0 17000000 6000000" fullextent="9000000 0 17000000 6000000" top="55" addarcgisbasemaps="false" esrilogovisible="false">
+      <basemaps>
+			<layer label="电子底图" type="customtiled"
+				url="http://202.121.180.56/TerrainWithLabel/{z}/{x}/{y}.jpg"
+				 visible="true"></layer>
+		</basemaps>
+    </map>
+
+    <!-- widgets organized into widget containers that manage close/open etc -->
+    <!-- supported layout property options: horizontal(default)|float|vertical|fix-->
+    <widgetcontainer layout="horizontal">
+        <!--
+        <widget label="My first widget"
+                icon="assets/images/i_widget.png"
+                config="widgets/Samples/HelloWorld/HelloWorldWidget.xml"
+                url="widgets/Samples/HelloWorld/HelloWorldWidget.swf"/>
+        -->
+    </widgetcontainer>
+
+</configuration>

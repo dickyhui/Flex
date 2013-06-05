@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+////////////////////////////////////////////////////////////////////////////////
+//
+// Copyright (c) 2012 GIS KEY LAB ZJU
+//
+// 自动气象站可视化界面
+//
+////////////////////////////////////////////////////////////////////////////////
+-->
+<viewer:BaseWidget xmlns:fx="http://ns.adobe.com/mxml/2009"
+				   xmlns:s="library://ns.adobe.com/flex/spark"
+				   xmlns:mx="library://ns.adobe.com/flex/mx"
+				   xmlns:esri="http://www.esri.com/2008/ags"
+				   xmlns:viewer="com.esri.viewer.*" left="20" top="100"
+				   widgetConfigLoaded="init()" xmlns:controls="com.brightPoint.controls.*" xmlns:ns="widgets.SiteW_S.*">
+	<fx:Declarations>
+		<mx:WebService id="Site" wsdl="{_wsURL}">
+			<mx:operation name="GetSitesBasicInfo" fault="Site_GetSitesBasicInfo_onFault(event)" result="Site_GetSitesBasicInfo_onResult(event)" resultFormat="object"/>	
+		</mx:WebService>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Graphic;
+			import com.esri.ags.geometry.MapPoint;
+			import com.esri.ags.geometry.Polyline;
+			import com.esri.ags.geometry.WebMercatorMapPoint;
+			import com.esri.ags.layers.GraphicsLayer;
+			import com.esri.ags.symbols.PictureMarkerSymbol;
+			import com.esri.ags.symbols.SimpleMarkerSymbol;
+			import com.esri.ags.symbols.Symbol;
+			import com.esri.ags.symbols.TextSymbol;
+			import com.esri.ags.utils.WebMercatorUtil;
+			import com.esri.ags.webmap.PopUpRenderer;
+			import com.esri.ags.webmap.supportClasses.PopUpInfo;
+			import com.esri.viewer.AppEvent;
+			import com.esri.viewer.TotalInfo;
+			import com.esri.viewer.ViewerContainer;
+			import com.esri.viewer.WidgetStates;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.LinkButton;
+			import mx.core.FlexGlobals;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.utils.StringUtil;
+			
+			import spark.components.Button;
+			import spark.components.supportClasses.ItemRenderer;
+			
+			import widgets.Site.SiteInfoRenderW_S;
+			//this function called when the widget's configuration is loaded
+			[Bindable]
+			private var _wsURL:String="";
+			private var _serverIP:String = "";
+			[Bindable]
+			private var _configXML:XML;
+			
+			[Bindable]
+			private var temprature:Number;
+			[Bindable]
+			private var humidity:Number;
+			[Bindable]
+			private var windSpeed:Number;
+			[Bindable]
+			private var windDirection:Number;
+			[Bindable]
+			private var Longitude:Number;
+			[Bindable]
+			private var Latitude:Number;
+			[Bindable]
+			private var Time:String;
+			[Bindable]
+			private var airTemperature:Number;
+			[Bindable]
+			private var airPressure:Number;
+			[Bindable]
+			private var airVisibility:Number;
+			[Bindable]
+			private var airRain:Number;
+			
+			private var station:String = "WEATHER_STATION";
+			
+			private const zoomScale:Number = 144447.638572;
+			private var timer:Timer = new Timer(300000);//计时器，每几分钟刷新气象参数
+			private function init():void
+			{
+				if (configXML) 
+				{
+					_configXML = configXML;	
+					_serverIP = configXML.ServerIP;
+					_wsURL = "http://" + _serverIP + "/GZA_WebService/GZA_WS_Site_For_Flex/Service.asmx?wsdl"
+					Site.loadWSDL(_wsURL);	
+				}
+				
+				Site.GetSitesBasicInfo(station);
+				timer.addEventListener(TimerEvent.TIMER,refreshParam);
+				
+				var changeWS:LinkButton = new LinkButton();
+				changeWS.label = "切换气象站";
+				changeWS.addEventListener(MouseEvent.CLICK,ChangeWS);
+				wt.headerToolGroup.addElement(changeWS);
+			}
+			//切换一号气象站和二号气象站
+			private function ChangeWS(evt:MouseEvent):void
+			{
+				station = (station=="WEATHER_STATION"?"WEATHER_STATION2":"WEATHER_STATION");
+				wt.widgetTitle = (wt.widgetTitle=="1号气象站"?"2号气象站":"1号气象站");
+				refreshParam(null);
+			}
+			
+			private function Site_GetSitesBasicInfo_onResult(evt:ResultEvent):void
+			{
+				if (evt.result)
+				{
+					for each(var site:Object in evt.result.ITEM)
+					{
+						Longitude = Number(site.LONG);
+						Latitude = Number(site.LAT);
+						temprature = Number(site.SW);
+						humidity = Number(site.PJXDSD);
+						windSpeed = Number(site.FS);
+						windDirection = Number(site.FX);
+						Time = String(site.TIME);
+						airTemperature = Number(site.PJQW);
+						airPressure = Number(site.QY);
+						airVisibility = Number(site.NJD);
+						airRain = Number(site.JS);
+					}
+				}
+			}
+			
+			private function Site_GetSitesBasicInfo_onFault(evt:FaultEvent):void
+			{
+				Alert.show("数据库连接出错，请重试...", "出错了！", 4, null, null);
+				return;
+			}
+
+			private function clickQueryResult(evt:Event):void
+			{
+				map.scale = Math.min(zoomScale,map.scale);
+				map.centerAt(geographicToMercator(new MapPoint(Longitude,Latitude)));
+			}
+
+			private function wTemplate_closeHandler(event:Event):void
+			{
+				setMapAction(null, null, null, null); // deactivate drawTool
+				timer.stop();
+			}
+			
+			/* 			private function openWidget():void
+			{
+			var obj:Object = {label:"站点分析", state:WidgetStates.WIDGET_OPENED};
+			ViewerContainer.dispatchEvent(new AppEvent(AppEvent.CHANGE_WIDGET_STATE, obj));
+			} */
+			
+			private function wTemplate_openHandler(event:Event):void
+			{
+				this.left = 20;
+				this.top = 130;
+				
+				timer.start();
+			}
+			
+			private function refreshParam(evt:TimerEvent):void
+			{
+				Site.GetSitesBasicInfo(station);
+			}
+			
+			protected function wTemplate_minimizedHandler(event:Event):void
+			{
+				this.x=0;
+				this.y=TotalInfo.siteW_S;
+				//timer.stop();
+			}
+			private function geographicToMercator(geo:MapPoint):MapPoint
+			{
+				const web:MapPoint = WebMercatorUtil.geographicToWebMercator(geo) as MapPoint;
+				return web;
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<mx:GlowFilter id="effectOutS" alpha="0.5" blurX="3" blurY="3" color="#000000" strength="2" quality="3" inner="false"/>
+		<mx:GlowFilter id="ggS" alpha="0.5" blurX="1.5" blurY="1.5" color="#000000" strength="2" quality="3" inner="true"/>
+		<mx:GlowFilter id="gg" alpha="0.5" blurX="3" blurY="3" color="#000000" strength="2" quality="3" inner="true"/>
+		<mx:GlowFilter id="effectOut" alpha="0.5" blurX="6" blurY="6" color="#000000" strength="2" quality="3" inner="false"/>
+	</fx:Declarations>
+	<viewer:WidgetTemplate id="wt" enableResizeButton="false" enableCloseButton="false"
+						   width="445" height="387" closed="wTemplate_closeHandler(event)" open="wTemplate_openHandler(event)" minimized="wTemplate_minimizedHandler(event)">
+		<s:VGroup width="100%" height="100%">
+			<s:HGroup width="100%" height="50%">
+				<s:VGroup  width="100%" height="100%">
+					<controls:DegrafaGauge id="temperatureGauge" diameter="680" height="130" width="130" styleName="gauge" caption=""
+										   minimum="0" maximum="100" value="{temprature}" indicatorColor="#44cc44"
+										   startAngle="30" endAngle="330" unitsSuffix="" 
+										   labelStyleName="gaugeLabel" formatterPrecision="1" showLabel="true" gaugeType="BasicGauge"
+										   FaceColor="F6F5CC" CaptionColor="0000dd" MarksColor="111111" ValueColor="0000dd" markLabelsColor="111111" />
+					<s:Label   text="海表温度：{temprature.toFixed(1)}°C"  color="#A8F9B5"  width="130" /> 
+				</s:VGroup>
+				<s:VGroup  width="100%" height="100%">
+					<controls:DegrafaGauge id="humidityGauge" diameter="180" height="130" width="130" styleName="gauge" caption=""
+										   minimum="0" maximum="100" value="{humidity}" indicatorColor="#44cc44"
+										   startAngle="30" endAngle="330" unitsSuffix=""
+										   labelStyleName="gaugeLabel" formatterPrecision="0" showLabel="true" gaugeType="BasicGauge"
+										   FaceColor="F6F5CC" CaptionColor="0000dd" MarksColor="111111" ValueColor="0000dd" markLabelsColor="111111" />
+					<s:Label   text="相对湿度：{humidity.toFixed(0)}%"  color="#A8F9B5"  width="130" /> 
+				</s:VGroup>
+				<mx:Spacer width="100%" />
+			</s:HGroup>
+			<s:HGroup width="100%" height="50%">
+				<s:VGroup  width="100%" height="100%">
+					<controls:DegrafaGauge id="windSpeedGauge" diameter="230" height="130" width="130"  styleName="gauge" caption=""
+										   minimum="0" maximum="50" value="{windSpeed}" 
+										   startAngle="30" endAngle="330" unitsSuffix="" gaugeType="SpeedAutoScale" 
+										   labelStyleName="gaugeLabel" formatterPrecision="0" showLabel="true" 
+										   FaceColor="F6F5CC" CaptionColor="0000dd" MarksColor="111111" ValueColor="0000dd" markLabelsColor="111111" />
+					<s:Label   text="10m风速：{windSpeed.toFixed(1)}m/s"  color="#A8F9B5"  width="130" /> 
+				</s:VGroup>
+				<s:VGroup  width="100%" height="100%">
+					<controls:DegrafaGauge id="windDirectionGauge" diameter="230" height="130" width="130"  styleName="gauge" caption=""
+										   minimum="0" maximum="359" value="{windDirection}"
+										   startAngle="0" endAngle="360" unitsSuffix="" 
+										   labelStyleName="gaugeLabel" formatterPrecision="1" showLabel="true" gaugeType="Compass" precision="1"
+										   FaceColor="F6F5CC" CaptionColor="0000dd" MarksColor="111111" ValueColor="0000dd" markLabelsColor="111111" />
+					<s:Label   text="10m风向：{windDirection.toFixed(0)}°"  color="#A8F9B5"  width="130" /> 
+				</s:VGroup>
+				<mx:Spacer width="100%" />
+			</s:HGroup>
+			<s:HGroup width="100%" >			
+				<s:Label   text="海平面气压:{airPressure.toFixed(1)}hPa   降水:{airRain.toFixed(1)}mm"  color="#A8F9B5"  />
+				<s:Label   text=" 时间：{Time}" color="#A8F9B5"    /> 
+			</s:HGroup>
+			<mx:Spacer height="100%" />
+		</s:VGroup>
+		<s:HGroup x="285" y="20">
+			<ns:VerticalBar id="airTemperatureGauge" caption="气温" width="45" height="260" value="{Number(airTemperature.toFixed(1))}"
+							maximum="{50}" minimum="{0}" gaugeType="1"  metric="{false}" fillColor="#FFCBCC" suffix="°C" />	
+			<mx:Spacer width="5">	</mx:Spacer>
+			<ns:VerticalBar id="airVisibilityGauge" caption="能见度" width="45" height="260" value="{airVisibility}"
+							maximum="{30}" minimum="{0}" gaugeType="1" metric="{true}" fillColor="#CDCBFF"  suffix="km" />
+		</s:HGroup>
+	</viewer:WidgetTemplate>
+</viewer:BaseWidget>

@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+/**
+*
+* Copyright (c) 2012 GIS KEY LAB ZJU
+*
+* 
+*
+*/
+-->
+<s:ItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009"
+				xmlns:s="library://ns.adobe.com/flex/spark"
+				xmlns:mx="library://ns.adobe.com/flex/mx"
+				xmlns:esri="http://www.esri.com/2008/ags"
+				dataChange="init(event)"
+				autoDrawBackground="false"
+				showEffect="mx.effects.Fade">
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Graphic;
+			import com.esri.ags.Map;
+			import com.esri.ags.geometry.Geometry;
+			import com.esri.ags.geometry.MapPoint;
+			import com.esri.ags.geometry.Polyline;
+			import com.esri.ags.layers.GraphicsLayer;
+			import com.esri.ags.layers.Layer;
+			import com.esri.ags.symbols.SimpleLineSymbol;
+			import com.esri.ags.symbols.SimpleMarkerSymbol;
+			import com.esri.ags.symbols.TextSymbol;
+			import com.esri.ags.utils.WebMercatorUtil;
+			import com.esri.viewer.AppEvent;
+			import com.esri.viewer.ViewerContainer;
+			import com.esri.viewer.WidgetStates;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.IFlexDisplayObject;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			[Bindable]
+			private var site:ArgoSiteAttribute;
+			
+			private const QUERY_BTN_CLICKED:String = "query_btn_clicked";
+			
+			private function init(evt:Event):void
+			{
+				site = data as ArgoSiteAttribute;
+			}
+			
+			private function query():void
+			{
+				ViewerContainer.dispatchEvent(new AppEvent(AppEvent.WIDGET_RUN, ["站点分析Argo",site]));
+				(this.owner as Map).infoWindow.hide();
+			}
+			
+			//argo轨迹图路由
+			private function trackRouter():void
+			{
+				if(!exitArgoTrackLayer())
+				{
+					argoProfile.getArgoTrack(site.PLATFORM_NUMBER);
+				}
+				else
+				{
+					removeArgoTrackLayer();
+				}
+			}
+			
+			//判断argo轨迹图是否存在
+			private function exitArgoTrackLayer():Boolean
+			{
+				var layer:Layer = (this.owner as Map).getLayer("ArgoTrack" + site.PLATFORM_NUMBER);
+				if(layer != null)
+				{
+					return true;
+				}
+				else
+				{
+					return false;
+				}
+			}
+			
+			//移除argo轨迹图
+			public function removeArgoTrackLayer():void
+			{
+				var layer:Layer = (this.owner as Map).getLayer("ArgoTrack" + site.PLATFORM_NUMBER);
+				if(layer != null)
+				{
+					(this.owner as Map).removeLayer(layer);
+				}
+			}
+			
+			private function Site_getArgoTrack_onResult(evt:ResultEvent):void
+			{
+				var result:ArrayCollection = new ArrayCollection();
+				result = evt.result as ArrayCollection;
+				if(result.length>0)
+				{
+					//显示argo轨迹图
+					var argoTrackLayer:GraphicsLayer = new GraphicsLayer();
+					argoTrackLayer.id = "ArgoTrack" + site.PLATFORM_NUMBER;
+					argoTrackLayer.name = "ArgoTrack" + site.PLATFORM_NUMBER;
+					//argo轨迹线
+					var simpleLineSymbol:SimpleLineSymbol = new SimpleLineSymbol("solid",0x00ff00,1,2);
+					var paths:Array = new Array();
+					var path:Array = new Array();
+					var graphicLine:Graphic = new Graphic();
+					argoTrackLayer.add(graphicLine);
+					for(var i:int=0;i<result.length;i++)
+					{
+						var argoTrackAttribute:ArgoTrackAttribute = new ArgoTrackAttribute();
+						argoTrackAttribute = result[i] as ArgoTrackAttribute;
+						//argo点
+						var mapPoint:MapPoint = new MapPoint(argoTrackAttribute.LONGITUDE,argoTrackAttribute.LATITUDE,(this.owner as Map).spatialReference);
+						var pointSymbol:SimpleMarkerSymbol = new SimpleMarkerSymbol("circle",15,0x00ff00);
+						var graphicPoint:Graphic = new Graphic(WebMercatorUtil.geographicToWebMercator(mapPoint),pointSymbol);	
+						//argo点的文本提示：时间
+						var toolTip:String = "(" + (i+1).toString()+ "): "+argoTrackAttribute.DATE;
+						//toolTip += "\n经度:" + "\n纬度:";
+						graphicPoint.mouseFocusEnabled = false;
+						graphicPoint.mouseEnabled = false;
+						//graphicPoint.mouseChildren = false;
+						//graphicPoint.toolTip = toolTip;
+						argoTrackLayer.add(graphicPoint);
+						//argo文本
+						var textformat:TextFormat = new TextFormat("微软雅黑",14,null);
+						var textSymbol:TextSymbol = new TextSymbol((i+1).toString(), null,0xff0000,1,false,0,false,16777215,"middle",0,0,0,textformat);
+						var graphicText:Graphic = new Graphic(WebMercatorUtil.geographicToWebMercator(mapPoint),textSymbol,null);
+						graphicText.toolTip = toolTip;
+						argoTrackLayer.add(graphicText);
+						//构成argo线的点
+						path.push(WebMercatorUtil.geographicToWebMercator(mapPoint));
+					}
+					paths.push(path);
+					var polyline:Polyline = new Polyline(paths,(this.owner as Map).spatialReference);
+					graphicLine.geometry = polyline;
+					graphicLine.symbol = simpleLineSymbol;
+					graphicLine.mouseEnabled = false;
+					(this.owner as Map).addLayer(argoTrackLayer);
+				}
+			}
+			
+			private function Site_getArgoTrack_onFault(evt:FaultEvent):void
+			{
+				Alert.show("数据库连接出错，请重试..." + evt.message, "出错了！", 4, null, null);
+				return;
+			}
+			
+			private function querySlice():void
+			{
+				var argoSliceTitleWindow:ArgoSliceTitleWindow = ArgoSliceTitleWindow(PopUpManager.createPopUp(this,ArgoSliceTitleWindow,true));
+				argoSliceTitleWindow.platNum = site.PLATFORM_NUMBER;
+				argoSliceTitleWindow.title = site.PLATFORM_NUMBER+"号Argo剖面";
+				argoSliceTitleWindow.x = this.stage.stageWidth/2 - argoSliceTitleWindow.width/2;
+				argoSliceTitleWindow.y = this.stage.stageHeight/2 - argoSliceTitleWindow.height/2;
+				argoSliceTitleWindow.addEventListener("close", closeHandler);
+				
+			}
+			//对话框关闭按钮响应事件，移除事件监听和移除对话框
+			private function closeHandler(event:Event):void {
+				
+				event.target.removeEventListener("close", closeHandler);
+				PopUpManager.removePopUp(event.target as IFlexDisplayObject);
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<s:RemoteObject id="argoProfile" destination="argoProfileHome">
+			<s:method name="getArgoTrack" result="Site_getArgoTrack_onResult(event)" fault="Site_getArgoTrack_onFault(event)"/>
+		</s:RemoteObject>
+	</fx:Declarations>
+	<s:VGroup id="grouponDealInfoVBox"
+			  height="100%" width="100%" 
+			  left="5" top="-8" right="5" bottom="5"
+			  horizontalAlign="left">
+		<mx:Button icon="@Embed('assets/images/slice.png')"  width="120" height="14" toolTip="剖面图" click="querySlice()"/>
+		<mx:Button id="btn_argoTrack" icon="@Embed('assets/images/wave.png')" width="120" height="14" toolTip="切换Argo轨迹"  click="trackRouter()"/>
+		<s:Label   text="浮标编号:{site.ARGOS_PTT}"  color="#F7F8B2"  /> 
+		<s:Label   text="WMO编号:{site.PLATFORM_NUMBER}"  color="#F7F8B2" /> 
+		<s:Label   text="投放国家:{site.PROJECT_NAME}"  color="#F7F8B2" /> 
+		<s:Label   text="浮标类型:{site.PLATFORM_MODEL}"  color="#F7F8B2" /> 
+		<s:Label   text="当前观测日期:{site.DATE}"  color="#F7F8B2"  /> 
+		<s:Label   text="当前观测经度:{site.LONGITUDE}"  color="#F7F8B2" /> 
+		<s:Label   text="当前观测纬度:{site.LATITUDE}"  color="#F7F8B2" /> 
+		<s:Label   text="浮标状态:{site.STATE}"  color="#F7F8B2" /> 
+	</s:VGroup>
+</s:ItemRenderer>

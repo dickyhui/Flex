@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewer:BaseWidget xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 xmlns:viewer="com.esri.viewer.*"
+		 xmlns:Products="widgets.Products.*"
+		 height="100%" right="0"
+		 widgetConfigLoaded="basewidget1_widgetConfigLoadedHandler(event)"
+		 preinitialize="basewidget1_preinitializeHandler(event)"
+		 >
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.utils.StringUtil;
+			import com.esri.viewer.AppEvent;
+			import com.esri.viewer.ViewerContainer;
+			import com.util.GlobalErrorHandler;
+			
+			import mx.core.FlexGlobals;
+			import mx.events.FlexEvent;
+			import mx.managers.ToolTipManager;
+			import mx.utils.StringUtil;
+			
+			import widgets.Products.NumericalPrediction.NumericalPrediction;
+			import widgets.Products.ObservationSite.ObservationSite;
+			import widgets.Products.SeaArea.SeaArea;
+			protected function basewidget1_widgetConfigLoadedHandler(event:Event):void
+			{
+				if(configXML)
+				{
+					ProductsWidgetXml.serverIP = configXML.ip;
+					var tyPhoonYears:String = configXML.tyPhoonYears;
+					ProductsWidgetXml.tyPhoonYears = mx.utils.StringUtil.trim(tyPhoonYears).split(",");
+				}
+				//设置提示字体大小
+				//StyleManager.getStyleDeclaration("mx.controls.ToolTip").setStyle("fontFamily","Microsoft YaHei");
+				//StyleManager.getStyleDeclaration("mx.controls.ToolTip").setStyle("fontSize","14");
+				ToolTipManager.showDelay = 0;
+				//StyleManager.getStyleDeclaration("mx.controls.ToolTip").setStyle("fontFamily","微软雅黑");
+
+				//throw("module");
+				
+				//要先初始化map，再加载其他
+				/* var productsUICom:ProductsUIComponent = new ProductsUIComponent();
+				productsUICom.percentHeight = 100;
+				productsUICom.right = 0;
+				this.addElement(productsUICom); */
+				
+				
+//				productsUICom.seaArea.map = map;
+//				productsUICom.numericalPrediction.map = map;
+//				productsUICom.lawEnforceSeaArea.map = map;
+//				productsUICom.observationSite.map = map;
+				//AppEvent.dispatch(AppEvent.MAPINITIALIZED,map);
+			}
+			
+//			所有 UIComponent 组件都使用一种三步走的过程来创建本身，即创建成员
+//			属性、创建子组件和设置自己的布局
+//			当某个节点位置的子组件初始化完
+//			毕时即广播一个 creationComplete 事件
+			protected function productsUICom_creationCompleteHandler(event:FlexEvent):void
+			{
+				AppEvent.dispatch(AppEvent.MAPINITIALIZED,map);
+			}
+			
+			protected function basewidget1_preinitializeHandler(event:FlexEvent):void
+			{
+				AppEvent.dispatch(AppEvent.WIDGETDOWNLOADCOMPLETE);
+			}
+			
+		]]>
+	</fx:Script>
+	<Products:ProductsUIComponent id="productsUICom" height="100%" right="0" creationComplete="productsUICom_creationCompleteHandler(event)"/>
+	
+</viewer:BaseWidget>

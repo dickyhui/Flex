@@ -1,0 +1,121 @@
+<?xml version="1.0" ?>
+	<!--
+		////////////////////////////////////////////////////////////////////////////////
+		// // Copyright (c) 2010-2011 ESRI // // All rights reserved under the
+		copyright laws of the United States. // You may freely redistribute
+		and use this software, with or // without modification, provided you
+		include the original copyright // and use restrictions. See use
+		restrictions in the file: // <install location>/License.txt // // Read
+		more about ArcGIS Viewer for Flex 2.3 -
+		http://links.esri.com/flexviewer //
+		////////////////////////////////////////////////////////////////////////////////
+	-->
+<configuration>
+	<title>港珠澳大桥岛隧工程海洋环境预报保障系统</title>
+	<subtitle></subtitle>
+	<logo>assets/images/earth3.png</logo>
+	<style>
+		<!-- Black Gold -->
+		<colors>0xFFFFFF,0x333333,0x1767d4,0xdd6e1d,0xFFD700</colors>
+		<titlefont />
+		<alpha>0.8</alpha>
+	</style>
+	<bing
+		key="Ahw1due6dkmZg98wUJJYLrVmYlDik4oleCg6hoNqx6l2jFYRToImQH1HfH-asjjH" />
+	<widget right="15" top="110" 
+		config="xml/NavigationWidget.xml" url="widgets/Navigation/NavigationWidget.swf" />
+	<widget left="0" top="0"
+		config="xml/HeaderControllerWidget.xml" url="widgets/HeaderController/HeaderControllerWidget.swf" />
+	<widget left="3" bottom="3"
+		config="xml/CoordinateWidget.xml" url="widgets/Coordinate/CoordinateWidget.swf" />
+	<widget right="15" top="80" 
+		config="xml/MapSwitcherWidget.xml" url="widgets/MapSwitcher/MapSwitcherWidget.swf"/>
+	<widget right="-2" bottom="-2" 
+		config="xml/ColorRampWidget.xml" url="widgets/ColorRamp/ColorRampWidget.swf"/>
+	<map wraparound180="true" initialextent="12600000 2520000 12700000 2580000"
+		wkid="102113" fullextent="12500000 2500000 12800000 2600000" top="0">
+		<basemaps>
+			<layer label="电子底图" type="customtiled"
+				url="http://202.121.180.188/FeatureWithLabelGZA/{z}/{x}/{y}.jpg"
+				 visible="true"></layer>
+			<layer label="卫星底图" type="customtiled"
+				url="http://202.121.180.188/SatelliteWithLabelGZA/{z}/{x}/{y}.jpg"
+				visible="false"></layer>
+		</basemaps>
+	</map>
+
+	<!-- 如果涉及数据查询，则采用数据加载的xml -->
+	<widgetcontainer layout="float">
+		<!-- menu="true" -->	
+		<widget label="复位" needLogin="false" icon="assets/images/refresh.png" 
+			config="xml/NavigationWidget.xml" url="nowidget?12660365.68;2538300;4" />
+		<widget label="气象数值预报" needLogin="false" icon="assets/images/sun_clouds_icon.png"
+			config="xml/LayerQuery_QXWidget.xml" url="widgets/LayerQuery_QX/LayerQuery_QXWidget.swf" />
+		<widget label="海浪数值预报" needLogin="false" icon="assets/images/wave_icon.png"
+			config="xml/LayerQuery_HLWidget.xml" url="widgets/LayerQuery_HL/LayerQuery_HLWidget.swf" />
+		<widget label="海流数值预报" needLogin="false" icon="assets/images/current.png"
+			config="xml/LayerQuery_CurrentWidget.xml" url="widgets/LayerQuery_Current/LayerQuery_CurrentWidget.swf" />
+		<widget label="预报单" needLogin="false" icon="assets/images/file.png"
+        	config="xml/PredictionPaperWidget.xml"  url="widgets/PredictionPaper/PredictionPaperWidget.swf"/>
+        <widget label="海浪动画" needLogin="false" icon="assets/images/waveGif.png"
+        	config="xml/WaveAnimationWidget.xml"  url="nowidget?202.121.180.148/GZA_Website/Data/WaveAnimation/海浪动画.swf"/>
+		<widget label="图层管理" needLogin="false" icon="assets/images/utilities-folder.png"
+        	config="xml/DB_Config.xml"  url="widgets/LayersManager/LayersManagerWidget.swf"/>
+        	
+        <!-- menu="false" -->	
+        <widget label="站点" needLogin="false" icon="assets/images/communicate.png" preload="open" menu="false"
+			config="xml/DB_Config.xml" url="widgets/Site/SiteWidget.swf" />
+		<widget label="1号气象站" needLogin="false" icon="assets/images/communicate.png" preload="open"  menu="false" 
+			config="xml/DB_Config.xml" url="widgets/SiteW_S/SiteW_SWidget.swf" />
+		<widget label="站点分析B1" needLogin="false" icon="assets/images/zhandian.png" menu="false" 
+			config="xml/SiteQueryWidgetB1.xml" url="widgets/SiteQuery/SiteQueryWidget.swf" />
+		<widget label="站点分析B2" needLogin="false" icon="assets/images/zhandian.png" menu="false" 
+			config="xml/SiteQueryWidgetB2.xml" url="widgets/SiteQuery/SiteQueryWidget.swf" />
+		<widget label="站点分析B4" needLogin="false" icon="assets/images/zhandian.png" menu="false" 
+			config="xml/SiteQueryWidgetB4.xml" url="widgets/SiteQuery/SiteQueryWidget.swf" />
+		<widget label="站点分析BCY" needLogin="false" icon="assets/images/zhandian.png" menu="false" 
+			config="xml/SiteQueryWidgetBCY.xml" url="widgets/SiteQuery/SiteQueryWidget.swf" />
+		<widget label="站点分析NJ" needLogin="false" icon="assets/images/zhandian.png" menu="false" 
+			config="xml/SiteQueryWidgetNJ.xml" url="widgets/SiteQuery/SiteQueryWidget.swf" />
+		<widget label="站点分析W_S" needLogin="false" icon="assets/images/zhandian.png" menu="false" 
+			config="xml/SiteQueryWidgetW_S.xml" url="widgets/SiteQuery/SiteQueryWidget.swf" />
+		<widget label="站点分析W_S2" needLogin="false" icon="assets/images/zhandian.png" menu="false" 
+			config="xml/SiteQueryWidgetW_S.xml" url="widgets/SiteQuery/SiteQueryWidget.swf" />
+		<widget label="站点分析QX" needLogin="false" icon="assets/images/zhandian.png" menu="false" 
+			config="xml/SiteQueryWidgetQX.xml" url="widgets/SiteQuery/SiteQueryWidgetYB.swf" />
+		<widget label="站点分析HL" needLogin="false" icon="assets/images/zhandian.png" menu="false" 
+			config="xml/SiteQueryWidgetHL.xml" url="widgets/SiteQuery/SiteQueryWidgetYB.swf" />
+		<widget label="站点分析T1" needLogin="false" icon="assets/images/zhandian.png" menu="false" 
+			config="xml/SiteQueryWidgetT1.xml" url="widgets/SiteQuery/SiteQueryWidgetYB.swf" />
+		<widget label="站点分析T2" needLogin="false" icon="assets/images/zhandian.png" menu="false" 
+			config="xml/SiteQueryWidgetT2.xml" url="widgets/SiteQuery/SiteQueryWidgetYB.swf" />
+		<widget label="站点分析A" needLogin="false" icon="assets/images/zhandian.png" menu="false" 
+			config="xml/SiteQueryWidgetCXYB.xml" url="widgets/SiteQuery/SiteQueryWidgetYB.swf" />
+		<widget label="站点分析B" needLogin="false" icon="assets/images/zhandian.png" menu="false" 
+			config="xml/SiteQueryWidgetCXYB.xml" url="widgets/SiteQuery/SiteQueryWidgetYB.swf" />
+		<widget label="站点分析C" needLogin="false" icon="assets/images/zhandian.png" menu="false" 
+			config="xml/SiteQueryWidgetCXYB.xml" url="widgets/SiteQuery/SiteQueryWidgetYB.swf" />
+		<widget label="站点分析D" needLogin="false" icon="assets/images/zhandian.png" menu="false" 
+			config="xml/SiteQueryWidgetCXYB.xml" url="widgets/SiteQuery/SiteQueryWidgetYB.swf" />
+		<widget label="站点分析E" needLogin="false" icon="assets/images/zhandian.png" menu="false" 
+			config="xml/SiteQueryWidgetCXYB.xml" url="widgets/SiteQuery/SiteQueryWidgetYB.swf" />
+		<widget label="站点分析F" needLogin="false" icon="assets/images/zhandian.png" menu="false" 
+			config="xml/SiteQueryWidgetCXYB.xml" url="widgets/SiteQuery/SiteQueryWidgetYB.swf" />
+		<widget label="站点分析G" needLogin="false" icon="assets/images/zhandian.png" menu="false" 
+			config="xml/SiteQueryWidgetCXYB.xml" url="widgets/SiteQuery/SiteQueryWidgetYB.swf" />
+		<widget label="剖面图A" needLogin="false" icon="assets/images/zhandian.png" menu="false" 
+			config="xml/DB_Config.xml" url="widgets/SiteQuery/SiteQuerySliceWidget.swf" />
+		<widget label="剖面图B" needLogin="false" icon="assets/images/zhandian.png" menu="false" 
+			config="xml/DB_Config.xml" url="widgets/SiteQuery/SiteQuerySliceWidget.swf" />
+		<widget label="剖面图C" needLogin="false" icon="assets/images/zhandian.png" menu="false" 
+			config="xml/DB_Config.xml" url="widgets/SiteQuery/SiteQuerySliceWidget.swf" />
+		<widget label="剖面图D" needLogin="false" icon="assets/images/zhandian.png" menu="false" 
+			config="xml/DB_Config.xml" url="widgets/SiteQuery/SiteQuerySliceWidget.swf" />
+		<widget label="剖面图E" needLogin="false" icon="assets/images/zhandian.png" menu="false" 
+			config="xml/DB_Config.xml" url="widgets/SiteQuery/SiteQuerySliceWidget.swf" />
+		<widget label="剖面图F" needLogin="false" icon="assets/images/zhandian.png" menu="false" 
+			config="xml/DB_Config.xml" url="widgets/SiteQuery/SiteQuerySliceWidget.swf" />
+		<widget label="剖面图G" needLogin="false" icon="assets/images/zhandian.png" menu="false" 
+			config="xml/DB_Config.xml" url="widgets/SiteQuery/SiteQuerySliceWidget.swf" />
+	</widgetcontainer>
+</configuration>

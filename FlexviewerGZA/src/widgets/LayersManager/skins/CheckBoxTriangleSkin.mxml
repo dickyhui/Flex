@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!--
+
+	 ADOBE SYSTEMS INCORPORATED
+	 Copyright 2008 Adobe Systems Incorporated
+	 All Rights Reserved.
+
+	 NOTICE: Adobe permits you to use, modify, and distribute this file
+	 in accordance with the terms of the license agreement accompanying it.
+
+-->
+
+<!--- The default skin class for the Spark CheckBox component.
+
+	 @see spark.components.CheckBox
+
+	 @langversion 3.0
+	 @playerversion Flash 10
+	 @playerversion AIR 1.5
+	 @productversion Flex 4
+-->
+<s:SparkSkin xmlns:fx="http://ns.adobe.com/mxml/2009"
+			 xmlns:s="library://ns.adobe.com/flex/spark"
+			 xmlns:fb="http://ns.adobe.com/flashbuilder/2009"
+			 alpha.disabledStates="0.5">
+
+	<fx:Metadata>
+		<![CDATA[ 
+        /** 
+         * @copy spark.skins.spark.ApplicationSkin#hostComponent
+         */
+        [HostComponent("spark.components.CheckBox")]
+    ]]>
+	</fx:Metadata>
+	<fx:Declarations>
+		<s:Linear id="easer"
+				  easeInFraction="0.5"
+				  easeOutFraction="0.5" />
+	</fx:Declarations>
+	<!-- Transitions for the mark -->
+	<s:transitions>
+		<s:Transition fromState="unchecked"
+					  toState="overAndSelected">
+			<s:Parallel target="{checkedMark}">
+				<s:Scale duration="250"
+						 scaleXBy="1"
+						 easer="{easer}" />
+			</s:Parallel>
+		</s:Transition>
+		<s:Transition fromState="checked"
+					  toState="over">
+			<s:Parallel target="{uncheckedMark}">
+				<s:Scale duration="250"
+						 easer="{easer}" />
+			</s:Parallel>
+		</s:Transition>
+	</s:transitions>
+	
+	<s:states>
+		<s:State name="up"
+				 stateGroups="unchecked" />
+		<s:State name="over"
+				 stateGroups="overStates, unchecked" />
+		<s:State name="down"
+				 stateGroups="downStates, unchecked" />
+		<s:State name="disabled"
+				 stateGroups="disabledStates, unchecked" />
+		<s:State name="upAndSelected"
+				 stateGroups="selectedStates, checked" />
+		<s:State name="overAndSelected"
+				 stateGroups="overStates, selectedStates, checked" />
+		<s:State name="downAndSelected"
+				 stateGroups="downStates, selectedStates, checked" />
+		<s:State name="disabledAndSelected"
+				 stateGroups="disabledStates, selectedStates, checked" />
+	</s:states>
+	<s:Group id="marks"
+			 verticalCenter="0"
+			 width="11"
+			 height="11"
+			 left="0">
+		<s:Path id="uncheckedMark"
+				data="M 0 7.5 L 10 7.5 L 5 0 z"
+				scaleX.unchecked="0"
+				scaleX="1"
+				scaleY.unchecked="0"
+				scaleY="1">
+			<s:fill>
+				<s:SolidColor color="0x6495ED" />
+			</s:fill>
+		</s:Path>
+		
+		<s:Path id="checkedMark"
+				data="L 10 0 L 5 7.5 z"
+				scaleX.checked="0"
+				scaleX="1"
+				scaleY.checked="0"
+				scaleY="1">
+			<s:fill>
+				<s:SolidColor color="0x6495ED" />
+			</s:fill>
+		</s:Path>
+		<s:Group width="100%"
+				 height="100%"
+				 alpha="0">
+			<s:Rect width="100%"
+					height="100%">
+				<s:fill>
+					<s:SolidColor color="0xff0000" />
+				</s:fill>
+			</s:Rect>
+		</s:Group>
+		<s:filters>
+			<s:DropShadowFilter distance="1"
+								strength="0.75"
+								blurX="1"
+								blurY="1" />
+		</s:filters>
+	</s:Group>
+</s:SparkSkin>

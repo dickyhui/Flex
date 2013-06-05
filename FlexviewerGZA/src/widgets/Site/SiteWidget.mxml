@@ -1,0 +1,742 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+////////////////////////////////////////////////////////////////////////////////
+//
+// Copyright (c) 2012 GIS KEY LAB ZJU
+//
+// 在地图上初始化显示BUOY BCYQT YBHLD NTDHLJ YBQXD 等站点
+//
+////////////////////////////////////////////////////////////////////////////////
+-->
+<viewer:BaseWidget xmlns:fx="http://ns.adobe.com/mxml/2009"
+				   xmlns:s="library://ns.adobe.com/flex/spark"
+				   xmlns:mx="library://ns.adobe.com/flex/mx"
+				   xmlns:esri="http://www.esri.com/2008/ags"
+				   xmlns:viewer="com.esri.viewer.*" left="100" top="100"
+				   widgetConfigLoaded="init()">
+	<fx:Declarations>
+		<mx:WebService id="Site" wsdl="{_wsURL}">
+			<mx:operation name="GetSitesBasicInfo" fault="Site_GetSitesBasicInfo_onFault(event)" result="Site_GetSitesBasicInfo_onResult(event)" resultFormat="object"/>	
+		</mx:WebService>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Graphic;
+			import com.esri.ags.SpatialReference;
+			import com.esri.ags.geometry.MapPoint;
+			import com.esri.ags.geometry.Polyline;
+			import com.esri.ags.geometry.WebMercatorMapPoint;
+			import com.esri.ags.layers.GraphicsLayer;
+			import com.esri.ags.symbols.PictureMarkerSymbol;
+			import com.esri.ags.symbols.SimpleLineSymbol;
+			import com.esri.ags.symbols.SimpleMarkerSymbol;
+			import com.esri.ags.symbols.Symbol;
+			import com.esri.ags.symbols.TextSymbol;
+			import com.esri.ags.utils.WebMercatorUtil;
+			import com.esri.ags.webmap.PopUpRenderer;
+			import com.esri.ags.webmap.supportClasses.PopUpInfo;
+			import com.esri.viewer.AppEvent;
+			import com.esri.viewer.TotalInfo;
+			import com.esri.viewer.ViewerContainer;
+			import com.esri.viewer.WidgetStates;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.FlexGlobals;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.utils.StringUtil;
+			
+			import spark.components.supportClasses.ItemRenderer;
+			//this function called when the widget's configuration is loaded
+			[Bindable]
+			private var _wsURL:String="";
+			private var _serverIP:String = "";
+			[Bindable]
+			private var _configXML:XML;
+			
+			[Bindable]
+			private var graphicsLayer:GraphicsLayer;
+			
+			[Bindable]
+			private var sites:ArrayCollection = new ArrayCollection();
+			
+			[Bindable]
+			private var siteAttributeB1:SiteAttributeB1 = new SiteAttributeB1();
+			[Bindable]
+			private var siteAttributeB2:SiteAttributeB2 = new SiteAttributeB2();
+			[Bindable]
+			private var siteAttributeB4:SiteAttributeB4 = new SiteAttributeB4();
+			[Bindable]
+			private var siteAttributeBCY:SiteAttributeBCY = new SiteAttributeBCY();
+			[Bindable]
+			private var siteAttributeNJ:SiteAttributeNJ = new SiteAttributeNJ();
+			[Bindable]
+			private var siteAttributeHLYBD:SiteAttributeHLYBD = new SiteAttributeHLYBD();
+			[Bindable]
+			private var siteAttributeQXYBD:SiteAttributeQXYBD = new SiteAttributeQXYBD();
+			[Bindable]
+			private var siteAttributeW_S:SiteAttributeW_S = new SiteAttributeW_S();
+			[Bindable]
+			private var siteAttributeW_S2:SiteAttributeW_S2 = new SiteAttributeW_S2();
+			[Bindable]
+			private var siteAttributeCXYBDT1:SiteAttributeCXYBDT1 = new SiteAttributeCXYBDT1();
+			[Bindable]
+			private var siteAttributeCXYBDT2:SiteAttributeCXYBDT2 = new SiteAttributeCXYBDT2();
+			[Bindable]
+			private var siteAttributeCXYBD_A:SiteAttributeCXYBD_A = new SiteAttributeCXYBD_A();
+			[Bindable]
+			private var siteAttributeCXYBD_B:SiteAttributeCXYBD_B = new SiteAttributeCXYBD_B();
+			[Bindable]
+			private var siteAttributeCXYBD_C:SiteAttributeCXYBD_C = new SiteAttributeCXYBD_C();
+			[Bindable]
+			private var siteAttributeCXYBD_D:SiteAttributeCXYBD_D = new SiteAttributeCXYBD_D();
+			[Bindable]
+			private var siteAttributeCXYBD_E:SiteAttributeCXYBD_E = new SiteAttributeCXYBD_E();
+			[Bindable]
+			private var siteAttributeCXYBD_F:SiteAttributeCXYBD_F = new SiteAttributeCXYBD_F();
+			[Bindable]
+			private var siteAttributeCXYBD_G:SiteAttributeCXYBD_G = new SiteAttributeCXYBD_G();
+			
+			private const zoomScale:Number = 144447.638572;
+			private var timer:Timer = new Timer(300000);//计时器，每几分钟刷新参数
+			private var showFirstTime:Boolean = true;//由于要更新数据，但地图中站点只加载一次，所以只在第一次加载站点
+			private var bridgeGraphicsLayer:GraphicsLayer;
+			
+			private function init():void
+			{
+				if (configXML) 
+				{
+					_configXML = configXML;	
+					_serverIP = configXML.ServerIP;
+					_wsURL = "http://" + _serverIP + "/GZA_WebService/GZA_WS_Site_For_Flex/Service.asmx?wsdl"
+					Site.loadWSDL(_wsURL);	
+				}
+
+				graphicsLayer = new GraphicsLayer();
+				graphicsLayer.id = "SiteFeatures";
+				graphicsLayer.name = "Site Features";
+				map.addLayer(graphicsLayer);
+				cursorManager.removeAllCursors();
+				//Site.GetSitesBasicInfo("BUOY1/BUOY2/BUOY3/BCYQT/YBHLD_A/NTDHLJ/YBQXD_AM/YBQXD_CP/YBQXD_FB301/YBQXD_FB302");
+				Site.GetSitesBasicInfo("BUOY1/BUOY2/BUOY4/BCYQT/YBHLD_A/NTDHLJ/YBQXD_CP/WEATHER_STATION/WEATHER_STATION2/PRE_T1/PRE_T2/PRE_A/PRE_B/PRE_C/PRE_D/PRE_E/PRE_F/PRE_G");
+				timer.addEventListener(TimerEvent.TIMER,refreshParam);
+				map.addEventListener(MouseEvent.CLICK,hideInfoWindowEvent);
+				
+				//添加gza大桥
+				addBridgeLayer();
+			}
+			//添加gza大桥
+			private function addBridgeLayer():void{
+				bridgeGraphicsLayer = new GraphicsLayer();
+				bridgeGraphicsLayer.id = "GZABridge";
+				bridgeGraphicsLayer.name = "GZABridge";
+				var symbol:SimpleLineSymbol = new SimpleLineSymbol("solid",0xFFC144,1,4);
+				var paths:Array = new Array();
+				var path:Array = new Array();
+				path.push(WebMercatorUtil.geographicToWebMercator(new MapPoint(113.77820,22.28249,new SpatialReference(4326))));
+				path.push(WebMercatorUtil.geographicToWebMercator(new MapPoint(113.84855,22.28256,new SpatialReference(4326))));
+				paths.push(path);
+				var line:Polyline = new Polyline(paths,new SpatialReference(102100));
+				var graphic:Graphic = new Graphic(line,symbol);
+				graphic.toolTip = "港珠澳大桥岛隧工程";
+				bridgeGraphicsLayer.add(graphic);
+				map.addLayer(bridgeGraphicsLayer,2);//大桥加在底图后面，其他后面
+			}
+			private function hideInfoWindowEvent(evt:MouseEvent):void
+			{
+				hideInfoWindow();
+			}
+			private function refreshParam(evt:TimerEvent):void
+			{
+				//BUOY1/BUOY2/BUOY3/BCYQT/NTDHLJ/WEATHER_STATION需要实时更新，预报数据不用
+				Site.GetSitesBasicInfo("BUOY1/BUOY2/BUOY4/BCYQT/NTDHLJ/WEATHER_STATION/WEATHER_STATION2");
+			}
+			private function Site_GetSitesBasicInfo_onResult(evt:ResultEvent):void
+			{
+				if (evt.result)
+				{
+					for each(var site:Object in evt.result.ITEM)
+					{
+						switch(String(site.NAME))
+						{
+							case "BUOY1":
+								siteAttributeB1.name = String(site.NAME);
+								siteAttributeB1.time = String(site.TIME);
+								siteAttributeB1.zdbg = String(site.ZDBG);
+								siteAttributeB1.zdbzq = String(site.ZDBZQ);
+								siteAttributeB1.pjbg = String(site.PJBG);
+								siteAttributeB1.pjzq = String(site.PJZQ);
+								siteAttributeB1.bx = String(site.BX);
+								break;
+							case "BUOY2":
+								siteAttributeB2.name = String(site.NAME);
+								siteAttributeB2.time = String(site.TIME);
+								siteAttributeB2.zdbg = String(site.ZDBG);
+								siteAttributeB2.zdbzq = String(site.ZDBZQ);
+								siteAttributeB2.pjbg = String(site.PJBG);
+								siteAttributeB2.pjzq = String(site.PJZQ);
+								siteAttributeB2.bx = String(site.BX);
+								break;
+							case "BUOY4":
+								siteAttributeB4.name = String(site.NAME);
+								siteAttributeB4.time = String(site.TIME);
+								siteAttributeB4.zdbg = String(site.ZDBG);
+								siteAttributeB4.zdbzq = String(site.ZDBZQ);
+								siteAttributeB4.pjbg = String(site.PJBG);
+								siteAttributeB4.pjzq = String(site.PJZQ);
+								siteAttributeB4.bx = String(site.BX);
+								break;
+							case "BCYQT":
+								siteAttributeBCY.name = "BCY";
+								siteAttributeBCY.time = String(site.TIME);
+								siteAttributeBCY.chaowei = String(site.CHAOWEI);
+								siteAttributeBCY.zdbg = String(site.ZDBG);
+								siteAttributeBCY.zdbzq = String(site.ZDBZQ);
+								siteAttributeBCY.pjbg = String(site.PJBG);
+								siteAttributeBCY.pjzq = String(site.PJZQ);
+								break;
+							case "YBHLD_A":
+								siteAttributeHLYBD.name = String(site.NAME);
+								siteAttributeHLYBD.time = String(site.TIME);
+								siteAttributeHLYBD.yxbg = Number(site.YXBG).toFixed(2);
+								siteAttributeHLYBD.pfzq = Number(site.PFZQ).toFixed(2);
+								siteAttributeHLYBD.pjzq = Number(site.PJZQ).toFixed(2);
+								siteAttributeHLYBD.pjbx = Number(site.PJBX).toFixed(2);
+								siteAttributeHLYBD.pfbx = Number(site.PFBX).toFixed(2);
+								siteAttributeHLYBD.xfs = Number(site.XFS).toFixed(2);
+								siteAttributeHLYBD.yfs = Number(site.YFS).toFixed(2);
+								siteAttributeHLYBD.ss = Number(site.SS).toFixed(2);
+								break;
+							case "NTDHLJ":
+								siteAttributeNJ.name = String(site.NAME);
+								siteAttributeNJ.time = String(site.TIME);
+								siteAttributeNJ.twols = String(site.TWOLS) == "9999"?"9999":String(Number(Number(site.TWOLS)*0.01).toFixed(2));
+								siteAttributeNJ.twolx = String(site.TWOLX);
+								siteAttributeNJ.threels = String(site.THREELS) == "9999"?"9999":String(Number(Number(site.TWOLS)*0.01).toFixed(2));
+								siteAttributeNJ.threelx = String(site.THREELX);
+								siteAttributeNJ.fourls = String(site.FOURLS) == "9999"?"9999":String(Number(Number(site.TWOLS)*0.01).toFixed(2));
+								siteAttributeNJ.fourlx = String(site.FOURLX);
+								break;
+							case "YBQXD_AM":
+								break;
+							case "YBQXD_CP":
+								siteAttributeQXYBD.name = String(site.NAME);
+								siteAttributeQXYBD.time = String(site.TIME);
+								siteAttributeQXYBD.tenfs = Number(site.TENFS).toFixed(1);
+								siteAttributeQXYBD.tenfx = Number(site.TENFX).toFixed(0);
+								siteAttributeQXYBD.twowd = Number(site.TWOWD).toFixed(1);
+								siteAttributeQXYBD.hpmqy = Number(site.HPMQY).toFixed(1);
+								siteAttributeQXYBD.twoxdsd = Number(site.TWOXDSD).toFixed(0);
+								break;
+							case "YBQXD_FB301":
+								break;
+							case "YBQXD_FB302":
+								break;
+							case "WEATHER_STATION":
+								siteAttributeW_S.name = String(site.NAME);
+								siteAttributeW_S.time = String(site.TIME);
+								siteAttributeW_S.pjqw = Number(site.PJQW).toFixed(1);
+								siteAttributeW_S.xdsd = Number(site.PJXDSD).toFixed(0);
+								siteAttributeW_S.fs = Number(site.FS).toFixed(1);
+								siteAttributeW_S.fx = Number(site.FX).toFixed(0);
+								siteAttributeW_S.njd = Number(site.NJD).toFixed(2);
+								siteAttributeW_S.qy = Number(site.QY).toFixed(1);
+								siteAttributeW_S.sw = Number(site.SW).toFixed(1);
+								siteAttributeW_S.js = Number(site.JS).toFixed(1);
+								break;
+							case "WEATHER_STATION2":
+								siteAttributeW_S2.name = String(site.NAME);
+								siteAttributeW_S2.time = String(site.TIME);
+								siteAttributeW_S2.pjqw = Number(site.PJQW).toFixed(1);
+								siteAttributeW_S2.xdsd = Number(site.PJXDSD).toFixed(0);
+								siteAttributeW_S2.fs = Number(site.FS).toFixed(1);
+								siteAttributeW_S2.fx = Number(site.FX).toFixed(0);
+								siteAttributeW_S2.njd = Number(site.NJD).toFixed(2);
+								siteAttributeW_S2.qy = Number(site.QY).toFixed(1);
+								siteAttributeW_S2.sw = Number(site.SW).toFixed(1);
+								siteAttributeW_S2.js = Number(site.JS).toFixed(1);
+								break;
+							case "PRE_T1":
+								siteAttributeCXYBDT1.name = String(site.NAME);
+								siteAttributeCXYBDT1.time = String(site.TIME);
+								siteAttributeCXYBDT1.cw = Number(site.CW).toFixed(2);
+								break;
+							case "PRE_T2":
+								siteAttributeCXYBDT2.name = String(site.NAME);
+								siteAttributeCXYBDT2.time = String(site.TIME);
+								siteAttributeCXYBDT2.cw = Number(site.CW).toFixed(2);
+								break;
+							case "PRE_A":
+								siteAttributeCXYBD_A.name = String(site.NAME);
+								siteAttributeCXYBD_A.time = String(site.TIME);
+								siteAttributeCXYBD_A.dir_1 = Number(site.DIR_1).toFixed(2);
+								siteAttributeCXYBD_A.speed_1 = Number(site.SPEED_1).toFixed(2);
+								siteAttributeCXYBD_A.dir_2 = Number(site.DIR_2).toFixed(2);
+								siteAttributeCXYBD_A.speed_2 = Number(site.SPEED_2).toFixed(2);
+								siteAttributeCXYBD_A.dir_3 = Number(site.DIR_3).toFixed(2);
+								siteAttributeCXYBD_A.speed_3 = Number(site.SPEED_3).toFixed(2);
+								break;
+							case "PRE_B":
+								siteAttributeCXYBD_B.name = String(site.NAME);
+								siteAttributeCXYBD_B.time = String(site.TIME);
+								siteAttributeCXYBD_B.dir_1 = Number(site.DIR_1).toFixed(2);
+								siteAttributeCXYBD_B.speed_1 = Number(site.SPEED_1).toFixed(2);
+								siteAttributeCXYBD_B.dir_2 = Number(site.DIR_2).toFixed(2);
+								siteAttributeCXYBD_B.speed_2 = Number(site.SPEED_2).toFixed(2);
+								siteAttributeCXYBD_B.dir_3 = Number(site.DIR_3).toFixed(2);
+								siteAttributeCXYBD_B.speed_3 = Number(site.SPEED_3).toFixed(2);
+								break;
+							case "PRE_C":
+								siteAttributeCXYBD_C.name = String(site.NAME);
+								siteAttributeCXYBD_C.time = String(site.TIME);
+								siteAttributeCXYBD_C.dir_1 = Number(site.DIR_1).toFixed(2);
+								siteAttributeCXYBD_C.speed_1 = Number(site.SPEED_1).toFixed(2);
+								siteAttributeCXYBD_C.dir_2 = Number(site.DIR_2).toFixed(2);
+								siteAttributeCXYBD_C.speed_2 = Number(site.SPEED_2).toFixed(2);
+								siteAttributeCXYBD_C.dir_3 = Number(site.DIR_3).toFixed(2);
+								siteAttributeCXYBD_C.speed_3 = Number(site.SPEED_3).toFixed(2);
+								break;
+							case "PRE_D":
+								siteAttributeCXYBD_D.name = String(site.NAME);
+								siteAttributeCXYBD_D.time = String(site.TIME);
+								siteAttributeCXYBD_D.dir_1 = Number(site.DIR_1).toFixed(2);
+								siteAttributeCXYBD_D.speed_1 = Number(site.SPEED_1).toFixed(2);
+								siteAttributeCXYBD_D.dir_2 = Number(site.DIR_2).toFixed(2);
+								siteAttributeCXYBD_D.speed_2 = Number(site.SPEED_2).toFixed(2);
+								siteAttributeCXYBD_D.dir_3 = Number(site.DIR_3).toFixed(2);
+								siteAttributeCXYBD_D.speed_3 = Number(site.SPEED_3).toFixed(2);
+								break;
+							case "PRE_E":
+								siteAttributeCXYBD_E.name = String(site.NAME);
+								siteAttributeCXYBD_E.time = String(site.TIME);
+								siteAttributeCXYBD_E.dir_1 = Number(site.DIR_1).toFixed(2);
+								siteAttributeCXYBD_E.speed_1 = Number(site.SPEED_1).toFixed(2);
+								siteAttributeCXYBD_E.dir_2 = Number(site.DIR_2).toFixed(2);
+								siteAttributeCXYBD_E.speed_2 = Number(site.SPEED_2).toFixed(2);
+								siteAttributeCXYBD_E.dir_3 = Number(site.DIR_3).toFixed(2);
+								siteAttributeCXYBD_E.speed_3 = Number(site.SPEED_3).toFixed(2);
+								break;
+							case "PRE_F":
+								siteAttributeCXYBD_F.name = String(site.NAME);
+								siteAttributeCXYBD_F.time = String(site.TIME);
+								siteAttributeCXYBD_F.dir_1 = Number(site.DIR_1).toFixed(2);
+								siteAttributeCXYBD_F.speed_1 = Number(site.SPEED_1).toFixed(2);
+								siteAttributeCXYBD_F.dir_2 = Number(site.DIR_2).toFixed(2);
+								siteAttributeCXYBD_F.speed_2 = Number(site.SPEED_2).toFixed(2);
+								siteAttributeCXYBD_F.dir_3 = Number(site.DIR_3).toFixed(2);
+								siteAttributeCXYBD_F.speed_3 = Number(site.SPEED_3).toFixed(2);
+								break;
+							case "PRE_G":
+								siteAttributeCXYBD_G.name = String(site.NAME);
+								siteAttributeCXYBD_G.time = String(site.TIME);
+								siteAttributeCXYBD_G.dir_1 = Number(site.DIR_1).toFixed(2);
+								siteAttributeCXYBD_G.speed_1 = Number(site.SPEED_1).toFixed(2);
+								siteAttributeCXYBD_G.dir_2 = Number(site.DIR_2).toFixed(2);
+								siteAttributeCXYBD_G.speed_2 = Number(site.SPEED_2).toFixed(2);
+								siteAttributeCXYBD_G.dir_3 = Number(site.DIR_3).toFixed(2);
+								siteAttributeCXYBD_G.speed_3 = Number(site.SPEED_3).toFixed(2);
+								break;
+						}
+					}
+					
+					//在地图上添加标志点，只执行一次
+					if(showFirstTime)
+					{
+						for each(var site:Object in evt.result.ITEM)
+						{
+							var gra:Graphic;
+							var markSymbol:Symbol; 
+							var textformat:TextFormat = new TextFormat("微软雅黑",16,null,false);
+							var txtSymbol:TextSymbol;
+							var siteCH:String = "";
+							switch(String(site.NAME))
+							{
+								case "BUOY1":
+									siteCH = "1号浮标";
+									markSymbol = new PictureMarkerSymbol("assets/images/fb.png", 30, 50, 0, 25);
+									txtSymbol= new TextSymbol(siteCH,null,0x000000,false,0,false,16777215,"middle",0,0,-10,textformat);
+									break;
+								case "BUOY2":
+									siteCH = "2号浮标";
+									markSymbol = new PictureMarkerSymbol("assets/images/fb.png", 30, 50, 0, 25);
+									txtSymbol= new TextSymbol(siteCH,null,0x000000,false,0,false,16777215,"middle",0,0,-10,textformat);
+									break;
+								case "BUOY4":
+									siteCH = "4号浮标";
+									markSymbol = new PictureMarkerSymbol("assets/images/fb.png", 30, 50, 0, 25);
+									txtSymbol= new TextSymbol(siteCH,null,0x000000,false,0,false,16777215,"middle",0,0,-10,textformat);
+									break;
+								case "BCYQT":
+									siteCH = "波潮仪";
+									markSymbol = new PictureMarkerSymbol("assets/images/bcy.png", 30, 50, 0, 25);
+									txtSymbol= new TextSymbol(siteCH,null,0x000000,false,0,false,16777215,"middle",0,0,-10,textformat);
+									break;
+								case "YBHLD_A":
+									//siteCH = "海浪预报点A";
+									siteCH = "海浪";
+									markSymbol= new PictureMarkerSymbol("assets/images/Red_glow.swf",15, 15, -5, 5);
+									txtSymbol= new TextSymbol(siteCH,null,0x000000,false,0,false,16777215,"middle",0,0,-20,textformat);
+									break;
+								case "NTDHLJ":
+									//siteCH = "牛头岛海流观测点";
+									siteCH = "牛头岛海流计";
+									markSymbol = new PictureMarkerSymbol("assets/images/hlj.png", 30, 50, 0, 25);
+									txtSymbol= new TextSymbol(siteCH,null,0x000000,false,0,false,16777215,"middle",0,0,-10,textformat);
+									break;
+								case "YBQXD_AM":
+									siteCH = "气象预报点AM";
+									markSymbol= new PictureMarkerSymbol("assets/images/Red_glow.swf",15, 15, 0, 0);
+									txtSymbol= new TextSymbol(siteCH,null,0x000000,false,0,false,16777215,"middle",0,0,-10,textformat);
+									break;
+								case "YBQXD_CP":
+									//siteCH = "气象预报点CP";
+									siteCH = "气象";
+									markSymbol= new PictureMarkerSymbol("assets/images/Red_glow.swf",15, 15, -5, 5);
+									txtSymbol= new TextSymbol(siteCH,null,0x000000,false,0,false,16777215,"middle",0,0,-20,textformat);
+									break;
+								case "YBQXD_FB301":
+									siteCH = "气象预报点浮标301";
+									markSymbol= new PictureMarkerSymbol("assets/images/Red_glow.swf",15, 15, 0, 0);
+									txtSymbol= new TextSymbol(siteCH,null,0x000000,false,0,false,16777215,"middle",0,0,-10,textformat);
+									break;
+								case "YBQXD_FB302":
+									siteCH = "气象预报点浮标302";
+									markSymbol= new PictureMarkerSymbol("assets/images/Red_glow.swf",15, 15, 0, 0);
+									txtSymbol= new TextSymbol(siteCH,null,0x000000,false,0,false,16777215,"middle",0,0,-10,textformat);
+									break;
+								case "WEATHER_STATION":
+									siteCH = "1号气象站";
+									markSymbol = new PictureMarkerSymbol("assets/images/zdqxz.png", 30, 50, 0, 0);
+									txtSymbol = new TextSymbol(siteCH,null,0x000000,false,0,false,16777215,"middle",0,0,-35,textformat);
+									break;
+								case "WEATHER_STATION2":
+									siteCH = "2号气象站";
+									markSymbol = new PictureMarkerSymbol("assets/images/zdqxz.png", 30, 50, 0, 0);
+									txtSymbol = new TextSymbol(siteCH,null,0x000000,false,0,false,16777215,"middle",0,50,0,textformat);
+									break;
+								case "PRE_T1":
+									siteCH = "潮汐T1";
+									markSymbol = new PictureMarkerSymbol("assets/images/Red_glow.swf", 15, 15, -5, 5);
+									txtSymbol = new TextSymbol(siteCH,null,0x000000,false,0,false,16777215,"middle",0,0,-20,textformat);
+									break;
+								case "PRE_T2":
+									siteCH = "潮汐T2";
+									markSymbol = new PictureMarkerSymbol("assets/images/Red_glow.swf", 15, 15, -5, 5);
+									txtSymbol = new TextSymbol(siteCH,null,0x000000,false,0,false,16777215,"middle",0,0,-20,textformat);
+									break;
+								case "PRE_A":
+									siteCH = "海流A";
+									markSymbol = new PictureMarkerSymbol("assets/images/Red_glow.swf", 15, 15, -5, 5);
+									txtSymbol = new TextSymbol(siteCH,null,0x000000,false,0,false,16777215,"middle",0,0,-20,textformat);
+									break;
+								case "PRE_B":
+									siteCH = "海流B";
+									markSymbol = new PictureMarkerSymbol("assets/images/Red_glow.swf", 15, 15, -5, 5);
+									txtSymbol = new TextSymbol(siteCH,null,0x000000,false,0,false,16777215,"middle",0,0,20,textformat);
+									break;
+								case "PRE_C":
+									siteCH = "海流C";
+									markSymbol = new PictureMarkerSymbol("assets/images/Red_glow.swf", 15, 15, -5, 5);
+									txtSymbol = new TextSymbol(siteCH,null,0x000000,false,0,false,16777215,"middle",0,0,-20,textformat);
+									break;
+								case "PRE_D":
+									siteCH = "海流D";
+									markSymbol = new PictureMarkerSymbol("assets/images/Red_glow.swf", 15, 15, -5, 5);
+									txtSymbol = new TextSymbol(siteCH,null,0x000000,false,0,false,16777215,"middle",0,0,20,textformat);
+									break;
+								case "PRE_E":
+									siteCH = "海流E";
+									markSymbol = new PictureMarkerSymbol("assets/images/Red_glow.swf", 15, 15, -5, 5);
+									txtSymbol = new TextSymbol(siteCH,null,0x000000,false,0,false,16777215,"middle",0,0,-20,textformat);
+									break;
+								case "PRE_F":
+									siteCH = "海流F";
+									markSymbol = new PictureMarkerSymbol("assets/images/Red_glow.swf", 15, 15, -5, 5);
+									txtSymbol = new TextSymbol(siteCH,null,0x000000,false,0,false,16777215,"middle",0,0,20,textformat);
+									break;
+								case "PRE_G":
+									siteCH = "海流G";
+									markSymbol = new PictureMarkerSymbol("assets/images/Red_glow.swf", 15, 15, -5, 5);
+									txtSymbol = new TextSymbol(siteCH,null,0x000000,false,0,false,16777215,"middle",0,0,-20,textformat);
+									break;
+								default:
+									siteCH = "DEFAULT";
+									markSymbol= new PictureMarkerSymbol("assets/images/Red_glow.swf",15, 15, 0, 0);
+									txtSymbol= new TextSymbol(siteCH,null,0x000000,false,0,false,16777215,"middle",0,0,-10,textformat);
+									break;
+							}
+							gra = getPointGraphic(Number(site.LONG),Number(site.LAT),markSymbol);
+							gra.attributes = new Object();
+							gra.attributes.LONG = String(site.LONG);
+							gra.attributes.LAT = String(site.LAT);
+							if(String(site.NAME) ==  "BCYQT")
+							{
+								gra.attributes.name = "BCY";
+							}
+							else
+							{
+								gra.attributes.name = String(site.NAME);
+							}
+							//sites.addItem({name:siteCH,gra:gra,x:Number(site.LONG),y:Number(site.LAT)});
+							graphicsLayer.add(getPointGraphic(Number(site.LONG),Number(site.LAT),txtSymbol,false));//显示字
+							graphicsLayer.add(gra);//显示gif图标，同时添加mouseover事件监听
+						}
+						showFirstTime = false;
+					}
+//					var point:MapPoint = geographicToMercator(new MapPoint(120,30,map.spatialReference));
+//					trace(point.x+"***"+point.y);
+				}
+			}
+			
+			private function Site_GetSitesBasicInfo_onFault(evt:FaultEvent):void
+			{
+				Alert.show("数据库连接出错，请重试...", "出错了！", 4, null, null);
+				return;
+			}
+			
+			//private var siteInfoRenderer:ClassFactory = new ClassFactory(SiteInfoRender);
+			
+			private function showHighlight(params:Array):void
+			{
+				
+				
+			}
+			
+			private function mouseOver(event:Event):void
+			{
+				var point:MapPoint = (event.currentTarget as Graphic).geometry as MapPoint;
+				if((event.currentTarget as Graphic).attributes != null)
+				{
+					switch((event.currentTarget as Graphic).attributes.name)
+					{
+						case "BUOY1":
+							var contentB1:SiteInfoRenderB1 = new ClassFactory(SiteInfoRenderB1).newInstance();
+							contentB1.data = siteAttributeB1 as Object;
+							map.infoWindow.content = contentB1;
+							map.infoWindow.content.owner = map;
+							map.infoWindow.closeButtonVisible = false;
+							map.infoWindow.show(point);
+							break;
+						case "BUOY2":
+							var contentB2:SiteInfoRenderB2 = new ClassFactory(SiteInfoRenderB2).newInstance();
+							contentB2.data = siteAttributeB2 as Object;
+							map.infoWindow.content = contentB2;
+							map.infoWindow.content.owner = map;
+							map.infoWindow.closeButtonVisible = false;
+							map.infoWindow.show(point);
+							break;
+						case "BUOY4":
+							var contentB4:SiteInfoRenderB4 = new ClassFactory(SiteInfoRenderB4).newInstance();
+							contentB4.data = siteAttributeB4 as Object;
+							map.infoWindow.content = contentB4;
+							map.infoWindow.content.owner = map;
+							map.infoWindow.closeButtonVisible = false;
+							map.infoWindow.show(point);
+							break;
+						case "BCY":
+							var contentBCY:SiteInfoRenderBCY = new ClassFactory(SiteInfoRenderBCY).newInstance();
+							contentBCY.data = siteAttributeBCY as Object;
+							map.infoWindow.content = contentBCY;
+							map.infoWindow.content.owner = map;
+							map.infoWindow.closeButtonVisible = false;
+							map.infoWindow.show(point);
+							break;
+						case "YBHLD_A":
+							var contentHLYBD:SiteInfoRenderHLYBD = new ClassFactory(SiteInfoRenderHLYBD).newInstance();
+							contentHLYBD.data = siteAttributeHLYBD as Object;
+							map.infoWindow.content = contentHLYBD;
+							map.infoWindow.content.owner = map;
+							map.infoWindow.closeButtonVisible = false;
+							map.infoWindow.show(point);
+							break;
+						case "NTDHLJ":
+							var contentNJ:SiteInfoRenderNJ = new ClassFactory(SiteInfoRenderNJ).newInstance();
+							contentNJ.data = siteAttributeNJ as Object;
+							map.infoWindow.content = contentNJ;
+							map.infoWindow.content.owner = map;
+							map.infoWindow.closeButtonVisible = false;
+							map.infoWindow.show(point);
+							break;
+						case "YBQXD_AM":
+						case "YBQXD_CP":
+						case "YBQXD_FB301":
+						case "YBQXD_FB302":
+							var contentQXYBD:SiteInfoRenderQXYBD = new ClassFactory(SiteInfoRenderQXYBD).newInstance();
+							contentQXYBD.data = siteAttributeQXYBD as Object;
+							map.infoWindow.content = contentQXYBD;
+							map.infoWindow.content.owner = map;
+							map.infoWindow.closeButtonVisible = false;
+							map.infoWindow.show(point);
+							break;
+						case "WEATHER_STATION":
+							var contentW_S:SiteInfoRenderW_S = new ClassFactory(SiteInfoRenderW_S).newInstance();
+							contentW_S.data = siteAttributeW_S as Object;
+							map.infoWindow.content = contentW_S;
+							map.infoWindow.content.owner = map;
+							map.infoWindow.closeButtonVisible = false;
+							map.infoWindow.show(point);
+							break;
+						case "WEATHER_STATION2":
+							var contentW_S2:SiteInfoRenderW_S2 = new ClassFactory(SiteInfoRenderW_S2).newInstance();
+							contentW_S2.data = siteAttributeW_S2 as Object;
+							map.infoWindow.content = contentW_S2;
+							map.infoWindow.content.owner = map;
+							map.infoWindow.closeButtonVisible = false;
+							map.infoWindow.show(point);
+							break;
+						case "PRE_T1":
+							var contentCXYBDT1:SiteInfoRenderCXYBDT1 = new ClassFactory(SiteInfoRenderCXYBDT1).newInstance();
+							contentCXYBDT1.data = siteAttributeCXYBDT1 as Object;
+							map.infoWindow.content = contentCXYBDT1;
+							map.infoWindow.content.owner = map;
+							map.infoWindow.closeButtonVisible = false;
+							map.infoWindow.show(point);
+							break;
+						case "PRE_T2":
+							var contentCXYBDT2:SiteInfoRenderCXYBDT2 = new ClassFactory(SiteInfoRenderCXYBDT2).newInstance();
+							contentCXYBDT2.data = siteAttributeCXYBDT2 as Object;
+							map.infoWindow.content = contentCXYBDT2;
+							map.infoWindow.content.owner = map;
+							map.infoWindow.closeButtonVisible = false;
+							map.infoWindow.show(point);
+							break;
+						case "PRE_A":
+							var contentCXYBD_A:SiteInfoRenderCXYBD_A = new ClassFactory(SiteInfoRenderCXYBD_A).newInstance();
+							contentCXYBD_A.data = siteAttributeCXYBD_A as Object;
+							map.infoWindow.content = contentCXYBD_A;
+							map.infoWindow.content.owner = map;
+							map.infoWindow.closeButtonVisible = false;
+							map.infoWindow.show(point);
+							break;
+						case "PRE_B":
+							var contentCXYBD_B:SiteInfoRenderCXYBD_B = new ClassFactory(SiteInfoRenderCXYBD_B).newInstance();
+							contentCXYBD_B.data = siteAttributeCXYBD_B as Object;
+							map.infoWindow.content = contentCXYBD_B;
+							map.infoWindow.content.owner = map;
+							map.infoWindow.closeButtonVisible = false;
+							map.infoWindow.show(point);
+							break;
+						case "PRE_C":
+							var contentCXYBD_C:SiteInfoRenderCXYBD_C = new ClassFactory(SiteInfoRenderCXYBD_C).newInstance();
+							contentCXYBD_C.data = siteAttributeCXYBD_C as Object;
+							map.infoWindow.content = contentCXYBD_C;
+							map.infoWindow.content.owner = map;
+							map.infoWindow.closeButtonVisible = false;
+							map.infoWindow.show(point);
+							break;
+						case "PRE_D":
+							var contentCXYBD_D:SiteInfoRenderCXYBD_D = new ClassFactory(SiteInfoRenderCXYBD_D).newInstance();
+							contentCXYBD_D.data = siteAttributeCXYBD_D as Object;
+							map.infoWindow.content = contentCXYBD_D;
+							map.infoWindow.content.owner = map;
+							map.infoWindow.closeButtonVisible = false;
+							map.infoWindow.show(point);
+							break;
+						case "PRE_E":
+							var contentCXYBD_E:SiteInfoRenderCXYBD_E = new ClassFactory(SiteInfoRenderCXYBD_E).newInstance();
+							contentCXYBD_E.data = siteAttributeCXYBD_E as Object;
+							map.infoWindow.content = contentCXYBD_E;
+							map.infoWindow.content.owner = map;
+							map.infoWindow.closeButtonVisible = false;
+							map.infoWindow.show(point);
+							break;
+						case "PRE_F":
+							var contentCXYBD_F:SiteInfoRenderCXYBD_F = new ClassFactory(SiteInfoRenderCXYBD_F).newInstance();
+							contentCXYBD_F.data = siteAttributeCXYBD_F as Object;
+							map.infoWindow.content = contentCXYBD_F;
+							map.infoWindow.content.owner = map;
+							map.infoWindow.closeButtonVisible = false;
+							map.infoWindow.show(point);
+							break;
+						case "PRE_G":
+							var contentCXYBD_G:SiteInfoRenderCXYBD_G = new ClassFactory(SiteInfoRenderCXYBD_G).newInstance();
+							contentCXYBD_G.data = siteAttributeCXYBD_G as Object;
+							map.infoWindow.content = contentCXYBD_G;
+							map.infoWindow.content.owner = map;
+							map.infoWindow.closeButtonVisible = false;
+							map.infoWindow.show(point);
+							break;
+					}
+				}
+			}
+			private function mouseOut(event:Event):void
+			{
+				//hideInfoWindow();
+			}
+			private function hideInfoWindow():void
+			{
+				map.infoWindow.hide();
+			}
+			
+			
+			private function clickQueryResult(evt:Event):void
+			{
+				var site:Object = this.dg_sites.selectedItem;
+				map.scale = Math.min(zoomScale,map.scale);
+				map.centerAt((site.gra as Graphic).geometry as MapPoint);
+			}
+			
+			
+			private function wTemplate_closeHandler(event:Event):void
+			{
+				graphicsLayer.visible = false;
+				hideInfoWindow();
+				setMapAction(null, null, null, null); // deactivate drawTool
+				timer.stop();
+			}
+			
+			/* 			private function openWidget():void
+			{
+			var obj:Object = {label:"站点分析", state:WidgetStates.WIDGET_OPENED};
+			ViewerContainer.dispatchEvent(new AppEvent(AppEvent.CHANGE_WIDGET_STATE, obj));
+			} */
+			
+			private function wTemplate_openHandler(event:Event):void
+			{
+				this.left = 100;
+				this.top = 130;
+				
+				if (graphicsLayer)
+				{
+					graphicsLayer.visible = true;
+				}
+				timer.start();
+			}
+			protected function wTemplate_minimizedHandler(event:Event):void
+			{
+				this.verticalCenter=null;
+				this.horizontalCenter=null;
+				this.x=0;
+				this.y=TotalInfo.site;
+			}
+			private function getPointGraphic(x:Number,y:Number,symbol:Symbol,b:Boolean=true):Graphic
+			{
+				var gra:Graphic = new Graphic(geographicToMercator(new MapPoint(x,y,map.spatialReference)),symbol);
+				if(b)
+				{
+					gra.addEventListener(MouseEvent.MOUSE_OVER,mouseOver);
+					gra.addEventListener(MouseEvent.MOUSE_OUT,mouseOut);
+				}
+				return gra;
+			}
+			private function geographicToMercator(geo:MapPoint):MapPoint
+			{
+				const web:MapPoint = WebMercatorUtil.geographicToWebMercator(geo) as MapPoint;
+				return web;
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+	</fx:Declarations>
+	<viewer:WidgetTemplate id="wt" visible="false" enableCloseButton="false"
+						   width="300" height="300" closed="wTemplate_closeHandler(event)" open="wTemplate_openHandler(event)" minimized="wTemplate_minimizedHandler(event)">
+		<mx:DataGrid id="dg_sites" dataProvider="{sites}" itemClick="clickQueryResult(event)" width="100%" height="100%" color="#040404" headerStyleName="dataHeaderStyle" textAlign="left"  chromeColor="#A3A5B2">
+			<mx:columns>
+				<mx:DataGridColumn headerText="站点名称" dataField="name"/>
+				<mx:DataGridColumn headerText="经度" dataField="x"/>
+				<mx:DataGridColumn headerText="纬度" dataField="y"/>
+			</mx:columns>
+		</mx:DataGrid>
+	</viewer:WidgetTemplate>
+</viewer:BaseWidget>

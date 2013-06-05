@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+///////////////////////////////////////////////////////////////////////////
+// Copyright (c) 2010-2011 Esri. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+///////////////////////////////////////////////////////////////////////////
+-->
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009"
+			   xmlns:s="library://ns.adobe.com/flex/spark"
+			   xmlns:viewer="com.esri.viewer.*"
+			   xmlns:managers="com.esri.viewer.managers.*"
+			   pageTitle="印度洋海洋环境信息服务平台"
+			   applicationComplete="application2_applicationCompleteHandler(event)"
+			   preloader="com.util.DownloadProgressBar" xmlns:util="com.util.*">
+	<fx:Style source="defaults.css"/>
+	
+	<fx:Metadata>
+		[ResourceBundle("ViewerStrings")]
+	</fx:Metadata>
+	<s:states>
+		<s:State name="loginPanel" />
+		<s:State name="main" />
+	</s:states>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.viewer.AppEvent;
+			import com.util.GlobalErrorHandler;
+			
+			import mx.core.FlexGlobals;
+			import mx.events.FlexEvent;
+			import mx.events.ModuleEvent;
+			import mx.rpc.http.HTTPService;
+			
+			import spark.modules.Module;
+			
+			protected function application2_applicationCompleteHandler(event:FlexEvent):void
+			{
+				//监听application的全局异常
+				GlobalErrorHandler.getInstance().addUncaughtEvent(this.root.loaderInfo); 
+				//throw("application");
+			}
+			
+			private function changeView(event:Event):void
+			{
+				this.currentState="main";
+				AppEvent.dispatch(AppEvent.CHANGEPRODUCTVIEW,"argoSite");
+			}
+		]]>
+	</fx:Script>
+	
+	<s:Group width="100%" height="100%">
+		<s:VGroup excludeFrom="main" visible="false" id="login" visible.loginPanel="true" width="100%" height="100%"  verticalAlign="middle" horizontalAlign="center">
+			<util:LoginPanel  validLogin="changeView(event)" />
+		</s:VGroup>
+		<s:Group  visible="false" id="container" 
+				  visible.main="true" width="100%" height="100%">
+			<viewer:ViewerContainer id="viewerContainer">
+				<viewer:configManager>
+					<managers:ConfigManager id="configManager"/>
+				</viewer:configManager>
+				<viewer:dataManager>
+					<managers:DataManager id="dataManager"/>
+				</viewer:dataManager>
+				<viewer:mapManager>
+					<managers:MapManager id="mapManager"/>
+				</viewer:mapManager>
+				<viewer:uiManager>
+					<managers:UIManager id="uiManager"/>
+				</viewer:uiManager>
+				<viewer:widgetManager>
+					<managers:WidgetManager id="widgetManager"/>
+				</viewer:widgetManager>
+			</viewer:ViewerContainer>
+		</s:Group>
+	</s:Group>
+	<util:Loading width="100%" height="100%" />
+	<!--state切换动画，从登陆界面到地图主页面，动画完成分发事件，执行EXPANDPRODUCTSWIDGET动画-->
+	<s:transitions>
+		<s:Transition id="tomain" fromState="loginPanel" toState="main">
+			<s:Sequence targets="{[login,container]}">
+				<s:Fade alphaFrom="1.0" alphaTo="0.0" duration="500" target="{login}"/>
+<!--				<s:Fade alphaFrom="0.0" alphaTo="1.0" duration="500" target="{container}" effectEnd="{AppEvent.dispatch(AppEvent.CHANGEPRODUCTVIEW);}"/>
+-->					<s:Fade alphaFrom="0.0" alphaTo="1.0" duration="500" target="{container}"/>
+			</s:Sequence>
+		</s:Transition>
+	</s:transitions>
+</s:Application>

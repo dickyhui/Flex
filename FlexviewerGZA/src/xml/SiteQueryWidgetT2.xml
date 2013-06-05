@@ -1,0 +1,22 @@
+<?xml version="1.0" ?>
+<configuration>
+	<itemE>
+		<name>YBCXD</name>
+		<param>
+			CW
+		</param>
+	</itemE>
+	<itemC>
+		<name>YBCXD</name>
+		<param>
+			潮位
+		</param>
+	</itemC>
+	<itemU>
+		<name>YBCXD</name>
+		<param>
+			m
+		</param>
+	</itemU>
+	<ServerIP> 202.121.180.148 </ServerIP>
+</configuration>

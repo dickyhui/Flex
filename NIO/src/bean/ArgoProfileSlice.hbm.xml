@@ -1,0 +1,70 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<!-- Generated 2013-5-5 13:44:40 by Hibernate Tools 3.4.0.CR1 -->
+<hibernate-mapping>
+    <class name="bean.ArgoProfileSlice" table="ARGO_PROFILE_SLICE">
+        <composite-id name="id" class="bean.ArgoProfileSliceId">
+            <key-property name="platformNumber" type="string">
+                <column name="PLATFORM_NUMBER" length="50" />
+            </key-property>
+            <key-property name="cycleNumber" type="string">
+                <column name="CYCLE_NUMBER" length="50" />
+            </key-property>
+            <key-property name="moveNum" type="short">
+                <column name="MOVE_NUM" precision="3" scale="0" />
+            </key-property>
+        </composite-id>
+        <property name="pres" type="big_decimal">
+            <column name="PRES" precision="10" scale="1">
+                <comment>&#209;&#185;&#193;&#166;&#185;&#219;&#178;&#226;&#214;&#181;&#163;&#168;&#181;&#165;&#163;&#186;dbar&#163;&#169;</comment>
+            </column>
+        </property>
+        <property name="presAdjusted" type="big_decimal">
+            <column name="PRES_ADJUSTED" precision="10" scale="1" />
+        </property>
+        <property name="presAdjustedQc" type="java.lang.Short">
+            <column name="PRES_ADJUSTED_QC" precision="3" scale="0" />
+        </property>
+        <property name="presAdjustedError" type="big_decimal">
+            <column name="PRES_ADJUSTED_ERROR" precision="10" scale="1" />
+        </property>
+        <property name="temp" type="big_decimal">
+            <column name="TEMP" precision="10" scale="1">
+                <comment>&#209;&#185;&#193;&#166;&#185;&#219;&#178;&#226;&#214;&#181;&#163;&#168;&#181;&#165;&#163;&#186;dbar&#163;&#169;</comment>
+            </column>
+        </property>
+        <property name="tempAdjusted" type="big_decimal">
+            <column name="TEMP_ADJUSTED" precision="10" scale="1" />
+        </property>
+        <property name="tempAdjustedQc" type="java.lang.Short">
+            <column name="TEMP_ADJUSTED_QC" precision="3" scale="0" />
+        </property>
+        <property name="tempAdjustedError" type="big_decimal">
+            <column name="TEMP_ADJUSTED_ERROR" precision="10" scale="1" />
+        </property>
+        <property name="psal" type="big_decimal">
+            <column name="PSAL" precision="10" scale="1">
+                <comment>&#209;&#185;&#193;&#166;&#185;&#219;&#178;&#226;&#214;&#181;&#163;&#168;&#181;&#165;&#163;&#186;dbar&#163;&#169;</comment>
+            </column>
+        </property>
+        <property name="psalAdjusted" type="big_decimal">
+            <column name="PSAL_ADJUSTED" precision="10" scale="1" />
+        </property>
+        <property name="psalAdjustedQc" type="java.lang.Short">
+            <column name="PSAL_ADJUSTED_QC" precision="3" scale="0" />
+        </property>
+        <property name="psalAdjustedError" type="big_decimal">
+            <column name="PSAL_ADJUSTED_ERROR" precision="10" scale="1" />
+        </property>
+        <property name="presQc" type="java.lang.Short">
+            <column name="PRES_QC" precision="3" scale="0" />
+        </property>
+        <property name="tempQc" type="java.lang.Short">
+            <column name="TEMP_QC" precision="3" scale="0" />
+        </property>
+        <property name="psalQc" type="java.lang.Short">
+            <column name="PSAL_QC" precision="3" scale="0" />
+        </property>
+    </class>
+</hibernate-mapping>

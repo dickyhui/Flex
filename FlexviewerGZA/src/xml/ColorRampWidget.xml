@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<configuration>
+    <initialstate>closed</initialstate>
+
+	<colorramps>
+		<colorramp>
+			<type>HSXIAO</type>
+			<path>widgets/ColorRamp/assets/HSXIAO.png</path>
+		</colorramp>
+		<colorramp>
+			<type>DRXIAO</type>
+			<path>return</path>
+		</colorramp>
+		<colorramp>
+			<type>TMXIAO</type>
+			<path>return</path>
+		</colorramp>
+		<colorramp>
+			<type>T2</type>
+			<path>widgets/ColorRamp/assets/T2.png</path>
+		</colorramp>
+		<colorramp>
+			<type>SLP</type>
+			<path>return</path>
+		</colorramp>
+		<colorramp>
+			<type>SSW</type>
+			<path>return</path>
+		</colorramp>
+		<colorramp>
+			<type>EL</type>
+			<path>widgets/ColorRamp/assets/EL.png</path>
+		</colorramp>
+		<colorramp>
+			<type>SLP</type>
+			<path>return</path>
+		</colorramp>
+		<colorramp>
+			<type>UV</type>
+			<path>return</path>
+		</colorramp>
+	</colorramps>
+	<ServerIP> 202.121.180.148 </ServerIP>
+</configuration>
+
+<!--
+    See Overview Map widget documentation at
+    http://links.esri.com/overviewmapwidget
+-->

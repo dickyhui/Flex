@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE hibernate-configuration PUBLIC
+"-//Hibernate/Hibernate Configuration DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-configuration-3.0.dtd">
+<hibernate-configuration>
+    <session-factory>
+        <mapping resource="bean/ArgoMetaInfo.hbm.xml" />
+        <mapping resource="bean/ArgoProfile.hbm.xml" />
+        <mapping resource="bean/ArgoProfileSlice.hbm.xml" />
+        <mapping resource="bean/NioUsers.hbm.xml" />
+        <mapping resource="bean/StationInfo.hbm.xml" />
+        <mapping resource="bean/FxzdWtzInfo.hbm.xml" />
+        <mapping resource="bean/TyphInfo.hbm.xml" />
+    	<mapping resource="bean/TyphMonitor.hbm.xml" />
+    	<mapping resource="bean/TyphForecast.hbm.xml" />
+    </session-factory>
+</hibernate-configuration>

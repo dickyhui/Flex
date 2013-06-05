@@ -1,0 +1,437 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group
+		 xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 xmlns:viewer="com.esri.viewer.*"
+		 width="100%" height="100%" 
+		 creationComplete="group1_creationCompleteHandler(event)"
+		 >
+	<fx:Declarations>
+		<s:RemoteObject id="hqtqybHome" destination="hqtqybHome" channelSet="{ new ChannelSet(['my-amf','my-polling-amf'])}" >
+			<s:method name="getHqtq" result="getHqtq_resultHandler(event)" fault="getHqtq_faultHandler(event)" />
+		</s:RemoteObject>
+	</fx:Declarations>
+	<fx:Metadata>
+		[Event(name="GoBacktoMain",type="flash.events.Event")]
+	</fx:Metadata>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Graphic;
+			import com.esri.ags.Map;
+			import com.esri.ags.geometry.MapPoint;
+			import com.esri.ags.geometry.Polygon;
+			import com.esri.ags.layers.GraphicsLayer;
+			import com.esri.ags.symbols.SimpleFillSymbol;
+			import com.esri.ags.symbols.SimpleLineSymbol;
+			import com.esri.viewer.AppEvent;
+			import com.esri.viewer.ViewerContainer;
+			import com.util.GlobalProperty;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.ToolTip;
+			import mx.events.FlexEvent;
+			import mx.managers.ToolTipManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.http.HTTPService;
+			[Bindable]
+			public var map:Map;
+			private var seaAreaLayer:GraphicsLayer = new GraphicsLayer();
+			[Embed(source="assets/images/Error.png")]
+			private var errorLogo:Class;
+			protected function goBack_clickHandler(event:MouseEvent):void
+			{
+				setLayerVisibility(false);
+				
+				var goBacktoMain:Event=new Event("GoBacktoMain", true);
+				this.dispatchEvent(goBacktoMain);
+			}
+			
+			public function setLayerVisibility(bool:Boolean):void
+			{
+				seaAreaLayer.visible = bool;
+			}
+			
+			protected function group1_creationCompleteHandler(event:Event):void
+			{
+				AppEvent.addListener(AppEvent.MAPINITIALIZED,MapInitializedListener);
+			}
+			protected function MapInitializedListener(event:AppEvent):void
+			{
+				this.map = event.data as Map;
+			}
+			//从main状态切换过来执行的函数
+			private var once:Boolean=true;
+			public function changeFunction():void
+			{
+				seaAreaLayer.visible = true;
+				setMapExtent();
+				//只执行一次
+				if(once)
+				{
+					once=false;
+					
+					seaAreaLayer.id = "seaAreaLayer";
+					//seaAreaLayer.visible = false;
+					map.addLayer(seaAreaLayer);
+					//请求海区xml数据
+					var httpServices:HTTPService = new HTTPService();
+					httpServices.url = "widgets/Products/SeaArea/SeaArea.xml" + GlobalProperty.version;
+					httpServices.resultFormat = HTTPService.RESULT_FORMAT_E4X;
+					//httpServices.useProxy = false;
+					httpServices.addEventListener(ResultEvent.RESULT,httpServicesResultHandler);
+					httpServices.addEventListener(FaultEvent.FAULT,httpServicesFAULTHandler);
+					httpServices.send();
+				}
+			}
+			//HTTPService回调，获取数据，绘制海区
+			protected function httpServicesResultHandler(event:ResultEvent):void
+			{
+				if(event.result is XML)
+				{
+					var xml:XML = event.result as XML;
+					for each(var seaArea:XML in xml.SeaArea)
+					{
+						var graphic:Graphic = new Graphic();
+						var polygon:Polygon  = new Polygon();
+						polygon.spatialReference = map.spatialReference;
+						var ring:Array = new Array();
+						for each(var pt:XML in seaArea.pt)
+						{
+							ring.push(new MapPoint(pt.@x,pt.@y));
+						}
+						polygon.addRing(ring);
+						graphic.geometry = polygon;
+						graphic.attributes = seaArea.@area;
+						graphic.toolTip = "第" + seaArea.@area +"海区";
+						var lineSymbol:SimpleLineSymbol = new SimpleLineSymbol("solid",0x3681AA,1,2);
+						var fillSymbol:SimpleFillSymbol = new SimpleFillSymbol("solid",0x3681AA,0,lineSymbol);
+						graphic.symbol = fillSymbol;
+						graphic.addEventListener(MouseEvent.MOUSE_OVER,graphicMouseOverListener);
+						graphic.addEventListener(MouseEvent.MOUSE_OUT,graphicMouseOutListener);
+						graphic.addEventListener(MouseEvent.CLICK,graphicMouseClickListener);
+						seaAreaLayer.add(graphic);
+					}
+					seaAreaLayer.refresh();
+				}
+				
+			}
+			
+			protected function httpServicesFAULTHandler(event:FaultEvent):void
+			{
+				Alert.show("加载海区数据出错！/n" + event.fault.faultString);
+			}
+			
+			protected function graphicMouseOverListener(event:MouseEvent):void
+			{
+				((event.currentTarget as Graphic).symbol as SimpleFillSymbol).alpha = 1;
+				seaAreaLayer.refresh();
+			}
+			
+			protected function graphicMouseOutListener(event:MouseEvent):void
+			{
+				((event.currentTarget as Graphic).symbol as SimpleFillSymbol).alpha = 0;
+				seaAreaLayer.refresh();
+			}
+			
+			protected function graphicMouseClickListener(event:MouseEvent):void
+			{
+				var hqbh:Number = Number((event.currentTarget as Graphic).attributes);
+				if(hqbh<=20 && hqbh>=1)
+				{
+					hqtq_title.text = "第" + hqbh + "海区";
+					hqtqybHome.getHqtq(hqbh);
+				}
+			}
+			
+			public function cb_showSeaArea_changeHandler(event:Event):void
+			{
+				//seaAreaLayer.visible = cb_showSeaArea.selected;
+			}
+			
+			protected function getHqtq_resultHandler(event:ResultEvent):void
+			{
+				if(event.result != null)
+				{
+					var result:ArrayCollection = event.result as ArrayCollection;
+					for(var i:Number=0;i<3;i++)
+					{
+						var hqtq:Hqtqyb = result[i] as Hqtqyb;
+						var date:String = (hqtq.qbsj.month+1) + "-" + (hqtq.qbsj.date + hqtq.id.ybtc - 1) 
+							+ ' ' + hqtq.qbsj.hours + '时'
+							+ ' 至 '
+							+ (hqtq.qbsj.month+1) + "-" + (hqtq.qbsj.date + hqtq.id.ybtc)  
+							+ ' ' + hqtq.qbsj.hours + '时';
+						(this["hqtq_date_" + (i+1)] as Label).text = date;
+						(this["hqtq_tqqk_" + (i+1)] as Label).text = hqtq.tqqk;
+						(this["hqtq_fx_" + (i+1)] as Label).text = hqtq.fx;
+						
+						var color:Number = getColor("风",hqtq.fs);
+						(this["hqtq_fs_" + (i+1)] as Label).text = hqtq.fs;
+						(this["hqtq_fs_" + (i+1)] as Label).visible = color==0xffffff;
+						(this["hqtq_fs_" + (i+1) + "_R"] as Label).text = hqtq.fs;
+						(this["hqtq_fs_" + (i+1) + "_R"] as Label).visible = color==0xff0000;
+						
+						(this["hqtq_scfw_" + (i+1)] as Label).text = hqtq.scfw;
+						
+						color = getColor("浪",hqtq.fl);
+						(this["hqtq_fl_" + (i+1)] as Label).text = hqtq.fl;
+						(this["hqtq_fl_" + (i+1)] as Label).visible = color==0xffffff;
+						(this["hqtq_fl_" + (i+1) + "_R"] as Label).text = hqtq.fl;
+						(this["hqtq_fl_" + (i+1) + "_R"] as Label).visible = color==0xff0000;
+						
+						color = getColor("浪",hqtq.yl);
+						(this["hqtq_yl_" + (i+1)] as Label).text = hqtq.yl;
+						(this["hqtq_yl_" + (i+1)] as Label).visible = color==0xffffff;
+						(this["hqtq_yl_" + (i+1) + "_R"] as Label).text = hqtq.yl;
+						(this["hqtq_yl_" + (i+1) + "_R"] as Label).visible = color==0xff0000;
+					}
+				}
+			}
+			//根据数值返回颜色，风七级以上为红色，否则为黑色，浪3m以上为红色，否则为黑色
+			protected function getColor(type:String,value:String):Number
+			{
+				var color:Number = 0xffffff;
+				if(value != null)
+				{
+					if(type == "风")
+					{
+						//包含7及以上的数字
+						var regExp:RegExp = /[7-9]|([1-9][0-9])/;
+						if(value.search(regExp) != -1)
+						{
+							color = 0xff0000;
+						}
+					}
+					else if(type == "浪")
+					{
+						//包含3.及以上数字
+						var regExp:RegExp = /([3-9]|([1-9][0-9]))\./;
+						if(value.search(regExp) != -1)
+						{
+							color = 0xff0000;
+						}
+					}
+				}
+				return color;
+			}
+			protected function getHqtq_faultHandler(event:FaultEvent):void
+			{
+				Alert.show("海区数据无法加载","服务器异常", 4, null, null,errorLogo);
+			}
+			
+			//设置地图视图范围
+			protected function setMapExtent():void
+			{
+				map.level = 1;
+				map.centerAt(new MapPoint(13914936,2753408));
+			}
+		]]>
+	</fx:Script>
+	<s:BorderContainer top="5" width="230" left="10" height="35" borderWeight="2"
+					   styleName="BorderContainer" >
+		<s:Label x="10" y="10"  styleName="LabelTitle" text="近海预报" />
+		<!--<s:Image x="145" y="4" source="assets/images/arrow-previous.png" />-->
+		<mx:LinkButton id="goBack" label="返回" styleName="LabelTitle" 
+						y="3" right="10" click="goBack_clickHandler(event)" />
+	</s:BorderContainer>
+	<!--<s:BorderContainer top="45"  width="230" left="10" height="30"
+					   styleName="BorderContainer" >
+		<s:CheckBox id="cb_showSeaArea" x="75" y="2" label="显示海区" selected="false" change="cb_showSeaArea_changeHandler(event)" />
+	</s:BorderContainer>-->
+	<mx:Grid left="10" top="45" width="230">
+		<mx:GridRow width="100%" styleName="GridItem2">
+			<mx:GridItem colSpan="2" width="100%">
+				<s:Label id="hqtq_title" />
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem colSpan="2">
+				<s:Label id="hqtq_date_1" />
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem width="30%" styleName="GridItem2">
+				<s:Label text="天气情况" />
+			</mx:GridItem>
+			<mx:GridItem width="71%">
+				<s:Label id="hqtq_tqqk_1" />
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="风向" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Label id="hqtq_fx_1" />
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="风速(级)" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Group>
+					<s:Label id="hqtq_fs_1" />
+					<s:Label id="hqtq_fs_1_R" color="0xff0000" />
+				</s:Group>
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%">
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="视程范围(公里)" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Label id="hqtq_scfw_1" />
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="风浪(米)" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Group>
+					<s:Label id="hqtq_fl_1" />
+					<s:Label id="hqtq_fl_1_R" color="0xff0000" />
+				</s:Group>
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="涌浪(米)" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Group>
+					<s:Label id="hqtq_yl_1" />
+					<s:Label id="hqtq_yl_1_R" color="0xff0000" />
+				</s:Group>
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem colSpan="2">
+				<s:Label id="hqtq_date_2" />
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="天气情况" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Label id="hqtq_tqqk_2" />
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="风向" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Label id="hqtq_fx_2" />
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="风速(级)" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Group>
+					<s:Label id="hqtq_fs_2" />
+					<s:Label id="hqtq_fs_2_R" color="0xff0000" />
+				</s:Group>
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="视程范围(公里)" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Label id="hqtq_scfw_2" />
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="风浪(米)" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Group>
+					<s:Label id="hqtq_fl_2" />
+					<s:Label id="hqtq_fl_2_R" color="0xff0000" />
+				</s:Group>
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="涌浪(米)" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Group>
+					<s:Label id="hqtq_yl_2" />
+					<s:Label id="hqtq_yl_2_R" color="0xff0000" />
+				</s:Group>
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem colSpan="2">
+				<s:Label id="hqtq_date_3" />
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="天气情况" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Label id="hqtq_tqqk_3" />
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="风向" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Label id="hqtq_fx_3" />
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="风速(级)" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Group>
+					<s:Label id="hqtq_fs_3" />
+					<s:Label id="hqtq_fs_3_R" color="0xff0000" />
+				</s:Group>
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="视程范围(公里)" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Label id="hqtq_scfw_3" />
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="风浪(米)" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Group>
+					<s:Label id="hqtq_fl_3" />
+					<s:Label id="hqtq_fl_3_R" color="0xff0000" />
+				</s:Group>
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="涌浪(米)" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Group>
+					<s:Label id="hqtq_yl_3" />
+					<s:Label id="hqtq_yl_3_R" color="0xff0000" />
+				</s:Group>
+			</mx:GridItem>
+		</mx:GridRow>
+	</mx:Grid>
+</s:Group>

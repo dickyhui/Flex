@@ -1,0 +1,105 @@
+<?xml version = "1.0" encoding = "UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:flex="http://www.springframework.org/schema/flex" xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:aop="http://www.springframework.org/schema/aop" xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-2.5.xsd
+		http://www.springframework.org/schema/flex http://www.springframework.org/schema/flex/spring-flex-1.0.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-2.5.xsd
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-2.5.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-2.5.xsd">
+
+	<!-- 配置数据库连接 -->
+	<bean id="dataSource"
+		class="org.springframework.jdbc.datasource.DriverManagerDataSource">
+		<property name="driverClassName" value="oracle.jdbc.driver.OracleDriver" />
+		<property name="url" value="jdbc:oracle:thin:@202.121.180.56:1521:SCSDATA" />
+		<property name="username" value="sde" />
+		<property name="password" value="sde" />
+	</bean>
+
+	<!--配置Session(会话)工厂参数 -->
+	<bean id="sessionFactory"
+		class="org.springframework.orm.hibernate3.LocalSessionFactoryBean">
+		<property name="dataSource" ref="dataSource" />
+		<!--配置oracle处理Blob、Clob数据时使用的类 -->
+		<property name="lobHandler" ref="oracleLobHandler" />
+		<!--配置hibernate配置文件的位置 -->
+		<property name="configLocation" value="classpath:hibernate.cfg.xml" />
+		<!--配置hibernate的参数 -->
+		<property name="hibernateProperties">
+			<props>
+				<!--配置hibernate使用的dialect为oracle 10g类型 -->
+				<prop key="hibernate.dialect">org.hibernate.dialect.Oracle10gDialect</prop>
+				<!--<prop key="hibernate.format_sql">true</prop> -->
+				<!--<prop key="hibernate.show_sql">true</prop> -->
+				<!--oracle数据库中建立好表空间时，将此参数值设置为create以生成数据表，其他时候可设置为update -->
+				<!-- <prop key="hibernate.hbm2ddl.auto">create</prop> -->
+			</props>
+		</property>
+	</bean>
+	<!-- 配置Oracle处理Blob或Clob数据类型时，使用spring提供的默认LobHandler -->
+	<!-- lazy-init="true"意味着使用该类时采用懒加载策略 -->
+	<bean id="oracleLobHandler" class="org.springframework.jdbc.support.lob.DefaultLobHandler"
+		lazy-init="true" />
+
+	<!--配置spring自动代理的类型为class -->
+	<aop:aspectj-autoproxy proxy-target-class="true" />
+
+	<!-- 配置flex端消息代理方法 -->
+	<!-- 实现服务器推送 -->
+	<!-- 设置消息传输StreamingAMFChannel通道 后台和前台都要设置-->
+	<flex:message-broker>
+		<flex:message-service
+			default-channels="my-streaming-amf" />
+	</flex:message-broker>
+	<bean id="defaultMessageTemplate" class="org.springframework.flex.messaging.MessageTemplate" />
+
+	<!-- 普通类调用Spring bean对象 -->
+	<bean id="toolSpring" class="dao.ToolSpring"></bean>
+	<bean id="scsUsersHome" class="dao.ScsUsersHome" scope="prototype">
+		<property name="sessionFactory" ref="sessionFactory" />
+		<flex:remoting-destination />
+	</bean>
+	<bean id="hqtqybHome" class="dao.HqtqybHome" scope="prototype">
+		<property name="sessionFactory" ref="sessionFactory" />
+		<flex:remoting-destination />
+	</bean>
+	<bean id="lawEnforceHome" class="dao.ZfhyHome" scope="prototype">
+		<property name="sessionFactory" ref="sessionFactory" />
+		<flex:remoting-destination />
+	</bean>
+	<bean id="buoyHome" class="dao.BuoyLast2Home" scope="prototype">
+		<property name="sessionFactory" ref="sessionFactory" />
+		<flex:remoting-destination />
+	</bean>
+	<bean id="typhInfoHome" class="dao.TyphInfoHome" scope="prototype">
+		<property name="sessionFactory" ref="sessionFactory" />
+		<flex:remoting-destination />
+	</bean>
+	<bean id="typhMonitorHome" class="dao.TyphMonitorHome" scope="prototype">
+		<property name="sessionFactory" ref="sessionFactory" />
+		<flex:remoting-destination />
+	</bean>
+	<bean id="typhForecastHome" class="dao.TyphForecastHome" scope="prototype">
+		<property name="sessionFactory" ref="sessionFactory" />
+		<flex:remoting-destination />
+	</bean>
+	<bean id="hqybdHome" class="dao.HqybdHome" scope="prototype">
+		<property name="sessionFactory" ref="sessionFactory" />
+		<flex:remoting-destination />
+	</bean>
+	<bean id="zfybdHome" class="dao.ZfybdHome" scope="prototype">
+		<property name="sessionFactory" ref="sessionFactory" />
+		<flex:remoting-destination />
+	</bean>
+	<bean id="jcfwxxHome" class="dao.JcfwxxHome" scope="prototype">
+		<property name="sessionFactory" ref="sessionFactory" />
+		<flex:remoting-destination />
+	</bean>
+	<bean id="tfybdHome" class="dao.TfybdHome" scope="prototype">
+		<property name="sessionFactory" ref="sessionFactory" />
+		<flex:remoting-destination />
+	</bean>
+</beans>

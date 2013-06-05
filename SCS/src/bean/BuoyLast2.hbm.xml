@@ -1,0 +1,61 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<!-- Generated 2013-1-31 22:24:10 by Hibernate Tools 3.4.0.CR1 -->
+<hibernate-mapping>
+    <class name="bean.BuoyLast2" table="BUOY_LAST2">
+        <composite-id name="id" class="bean.BuoyLast2Id">
+            <key-property name="name" type="string">
+                <column name="NAME" length="50" />
+            </key-property>
+            <key-property name="dateTime" >
+                <column name="DATE_TIME" />
+            </key-property>
+        </composite-id>
+        <property name="yxbg" type="big_decimal">
+            <column name="YXBG" precision="10">
+                <comment>A3010704000 &#211;&#208;&#208;&#167;&#178;&#168;&#184;&#223;</comment>
+            </column>
+        </property>
+        <property name="pjbg" type="big_decimal">
+            <column name="PJBG" precision="10">
+                <comment>A3010705100 &#198;&#189;&#190;&#249;&#178;&#168;&#207;&#242;</comment>
+            </column>
+        </property>
+        <property name="qw" type="big_decimal">
+            <column name="QW" precision="10">
+                <comment>A3020100400 &#198;&#248;&#206;&#194;</comment>
+            </column>
+        </property>
+        <property name="qy" type="big_decimal">
+            <column name="QY" precision="10">
+                <comment>A3020200400 &#198;&#248;&#209;&#185;</comment>
+            </column>
+        </property>
+        <property name="bcsw" type="big_decimal">
+            <column name="BCSW" precision="10">
+                <comment>A3010100400 &#177;&#237;&#178;&#227;&#203;&#174;&#206;&#194;</comment>
+            </column>
+        </property>
+        <property name="zdbg" type="big_decimal">
+            <column name="ZDBG" precision="10">
+                <comment>A3010704300 &#215;&#238;&#180;&#243;&#178;&#168;&#184;&#223;</comment>
+            </column>
+        </property>
+        <property name="fs" type="big_decimal">
+            <column name="FS" precision="10">
+                <comment>A3020402200 &#183;&#231;&#203;&#217;</comment>
+            </column>
+        </property>
+        <property name="fx" type="big_decimal">
+            <column name="FX" precision="10">
+                <comment>A3020400700 &#183;&#231;&#207;&#242;</comment>
+            </column>
+        </property>
+        <property name="yxbzw" type="big_decimal">
+            <column name="YXBZW" precision="10">
+                <comment>A3010703700&#211;&#208;&#208;&#167;&#178;&#168;&#214;&#220;&#198;&#218;</comment>
+            </column>
+        </property>
+    </class>
+</hibernate-mapping>

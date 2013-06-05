@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<!-- Generated 2013-3-8 16:06:27 by Hibernate Tools 3.4.0.CR1 -->
+<hibernate-mapping>
+    <class name="bean.Jcfwxx" table="JCFWXX">
+        <composite-id name="id" class="bean.JcfwxxId">
+            <key-property name="period" type="string">
+                <column name="PERIOD" length="20" />
+            </key-property>
+            <key-property name="filename" type="string">
+                <column name="FILENAME" length="30" />
+            </key-property>
+        </composite-id>
+    </class>
+</hibernate-mapping>

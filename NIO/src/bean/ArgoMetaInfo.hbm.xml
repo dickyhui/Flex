@@ -1,0 +1,164 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<!-- Generated 2013-5-10 16:12:56 by Hibernate Tools 3.4.0.CR1 -->
+<hibernate-mapping>
+    <class name="bean.ArgoMetaInfo" table="ARGO_META_INFO">
+        <id name="platformNumber" type="string">
+            <column name="PLATFORM_NUMBER" length="50" />
+            <generator class="assigned" />
+        </id>
+        <property name="ptt" type="string">
+            <column name="PTT" length="50">
+                <comment>ARGOS&#198;&#189;&#204;&#168;&#186;&#197;:7034</comment>
+            </column>
+        </property>
+        <property name="transSystem" type="string">
+            <column name="TRANS_SYSTEM" length="50">
+                <comment>&#180;&#171;&#202;&#228;&#207;&#181;&#205;&#179;:IRIDIUM</comment>
+            </column>
+        </property>
+        <property name="transRepetition" type="big_decimal">
+            <column name="TRANS_REPETITION" precision="38" scale="0">
+                <comment>
+                &#184;&#161;&#177;&#234;&#208;&#197;&#186;&#197;&#180;&#171;&#202;&#228;&#214;&#216;&#184;&#180;&#194;&#202;&#163;&#168;&#181;&#165;&#206;&#187;&#163;&#186;&#195;&#235;&#163;&#169;</comment>
+            </column>
+        </property>
+        <property name="positioningSystem" type="string">
+            <column name="POSITIONING_SYSTEM" length="50">
+                <comment>&#184;&#161;&#177;&#234;&#202;&#185;&#211;&#195;&#181;&#196;&#182;&#168;&#206;&#187;&#207;&#181;&#205;&#179;</comment>
+            </column>
+        </property>
+        <property name="platformModel" type="string">
+            <column name="PLATFORM_MODEL" length="50">
+                <comment>&#184;&#161;&#177;&#234;&#181;&#196;&#192;&#224;&#208;&#205;</comment>
+            </column>
+        </property>
+        <property name="platformMaker" type="string">
+            <column name="PLATFORM_MAKER" length="50">
+                <comment>&#184;&#161;&#177;&#234;&#181;&#196;&#214;&#198;&#212;&#236;&#201;&#204;</comment>
+            </column>
+        </property>
+        <property name="direction" type="string">
+            <column name="DIRECTION" length="50">
+                <comment>&#198;&#202;&#195;&#230;&#181;&#196;&#178;&#201;&#209;&#249;&#183;&#189;&#207;&#242;:A(A=ASCENDING ONLY;B=BOTH DESCENDING AND ASCENDING)</comment>
+            </column>
+        </property>
+        <property name="projectName" type="string">
+            <column name="PROJECT_NAME" length="50">
+                <comment>&#184;&#161;&#177;&#234;&#203;&#249;&#202;&#244;&#181;&#196;&#207;&#238;&#196;&#191;&#195;&#251;&#179;&#198;</comment>
+            </column>
+        </property>
+        <property name="piName" type="string">
+            <column name="PI_NAME" length="50">
+                <comment>&#184;&#161;&#177;&#234;&#203;&#249;&#202;&#244;&#181;&#196;&#184;&#186;&#212;&#240;&#200;&#203;</comment>
+            </column>
+        </property>
+        <property name="launchDate" type="date">
+            <column name="LAUNCH_DATE" >
+                <comment>
+                &#184;&#161;&#177;&#234;&#181;&#196;&#205;&#182;&#183;&#197;&#200;&#213;&#198;&#218;&#163;&#168;&#184;&#241;&#202;&#189;&#206;&#170;&#196;&#234;&#212;&#194;&#200;&#213;&#202;&#177;&#183;&#214;&#195;&#235;&#163;&#169;</comment>
+            </column>
+        </property>
+        <property name="launchLatitude" type="big_decimal">
+            <column name="LAUNCH_LATITUDE" precision="10" scale="3">
+                <comment>&#184;&#161;&#177;&#234;&#181;&#196;&#205;&#182;&#183;&#197;&#206;&#179;&#182;&#200;</comment>
+            </column>
+        </property>
+        <property name="launchLongitude" type="big_decimal">
+            <column name="LAUNCH_LONGITUDE" precision="10" scale="3">
+                <comment>&#184;&#161;&#177;&#234;&#181;&#196;&#205;&#182;&#183;&#197;&#190;&#173;&#182;&#200;</comment>
+            </column>
+        </property>
+        <property name="startDate" type="date">
+            <column name="START_DATE">
+                <comment>&#184;&#161;&#177;&#234;&#181;&#218;&#210;&#187;&#180;&#206;&#207;&#194;&#199;&#177;&#181;&#196;&#202;&#177;&#188;&#228;:20110310182155</comment>
+            </column>
+        </property>
+        <property name="deployPlatform" type="string">
+            <column name="DEPLOY_PLATFORM" length="100">
+                <comment>&#184;&#161;&#177;&#234;&#205;&#182;&#183;&#197;&#202;&#185;&#211;&#195;&#181;&#196;&#198;&#189;&#204;&#168;</comment>
+            </column>
+        </property>
+        <property name="sensor" type="string">
+            <column name="SENSOR" length="100">
+                <comment>&#184;&#161;&#177;&#234;&#215;&#176;&#212;&#216;&#181;&#196;&#180;&#171;&#184;&#208;&#198;&#247;</comment>
+            </column>
+        </property>
+        <property name="sensorMaker" type="string">
+            <column name="SENSOR_MAKER" length="100">
+                <comment>&#184;&#161;&#177;&#234;&#180;&#171;&#184;&#208;&#198;&#247;&#181;&#196;&#214;&#198;&#212;&#236;&#201;&#204;</comment>
+            </column>
+        </property>
+        <property name="sensorModel" type="string">
+            <column name="SENSOR_MODEL" length="100">
+                <comment>&#184;&#161;&#177;&#234;&#180;&#171;&#184;&#208;&#198;&#247;&#181;&#196;&#192;&#224;&#208;&#205;</comment>
+            </column>
+        </property>
+        <property name="sensorSerialNo" type="string">
+            <column name="SENSOR_SERIAL_NO" length="100">
+                <comment>&#180;&#171;&#184;&#208;&#198;&#247;&#181;&#196;&#208;&#242;&#193;&#208;&#186;&#197;</comment>
+            </column>
+        </property>
+        <property name="sensorUnits" type="string">
+            <column name="SENSOR_UNITS" length="50">
+                <comment>&#180;&#171;&#184;&#208;&#198;&#247;&#181;&#196;&#185;&#219;&#178;&#226;&#214;&#181;&#181;&#196;&#181;&#165;&#206;&#187;</comment>
+            </column>
+        </property>
+        <property name="sensorAccuracy" type="string">
+            <column name="SENSOR_ACCURACY" length="50">
+                <comment>&#180;&#171;&#184;&#208;&#198;&#247;&#181;&#196;&#190;&#171;&#182;&#200;</comment>
+            </column>
+        </property>
+        <property name="sensorResolution" type="string">
+            <column name="SENSOR_RESOLUTION" length="50">
+                <comment>&#180;&#171;&#184;&#208;&#198;&#247;&#181;&#196;&#183;&#214;&#177;&#230;&#194;&#202;</comment>
+            </column>
+        </property>
+        <property name="repetitionRate" type="string">
+            <column name="REPETITION_RATE" length="50">
+                <comment>
+                &#184;&#161;&#177;&#234;&#209;&#173;&#187;&#183;&#214;&#216;&#184;&#180;&#180;&#206;&#202;&#253;&#163;&#172;&#205;&#168;&#179;&#163;&#184;&#161;&#177;&#234;&#181;&#196;&#209;&#173;&#187;&#183;&#180;&#206;&#202;&#253;&#206;&#170;1</comment>
+            </column>
+        </property>
+        <property name="cycleTime" type="string">
+            <column name="CYCLE_TIME" length="50">
+                <comment>
+                &#184;&#161;&#177;&#234;&#181;&#196;&#209;&#173;&#187;&#183;&#202;&#177;&#188;&#228;&#163;&#168;&#181;&#165;&#206;&#187;&#163;&#186;&#208;&#161;&#202;&#177;&#163;&#169;</comment>
+            </column>
+        </property>
+        <property name="parkingTime" type="string">
+            <column name="PARKING_TIME" length="50">
+                <comment>
+                &#184;&#161;&#177;&#234;&#212;&#218;&#205;&#163;&#193;&#244;&#201;&#238;&#182;&#200;&#181;&#196;&#198;&#175;&#210;&#198;&#202;&#177;&#188;&#228;&#163;&#168;&#181;&#165;&#206;&#187;&#163;&#186;&#208;&#161;&#202;&#177;&#163;&#169;</comment>
+            </column>
+        </property>
+        <property name="descendingProfilingTime" type="string">
+            <column name="DESCENDING_PROFILING_TIME" length="50">
+                <comment>&#184;&#161;&#177;&#234;&#207;&#194;&#199;&#177;&#181;&#189;&#205;&#163;&#193;&#244;&#201;&#238;&#182;&#200;&#181;&#196;&#202;&#177;&#188;&#228;</comment>
+            </column>
+        </property>
+        <property name="ascendingProfilingTime" type="string">
+            <column name="ASCENDING_PROFILING_TIME" length="50">
+                <comment>&#184;&#161;&#177;&#234;&#201;&#207;&#201;&#253;&#181;&#189;&#186;&#163;&#195;&#230;&#181;&#196;&#202;&#177;&#188;&#228;</comment>
+            </column>
+        </property>
+        <property name="surfaceTime" type="string">
+            <column name="SURFACE_TIME" length="50">
+                <comment>&#184;&#161;&#177;&#234;&#212;&#218;&#186;&#163;&#195;&#230;&#205;&#163;&#193;&#244;&#181;&#196;&#202;&#177;&#188;&#228;</comment>
+            </column>
+        </property>
+        <property name="parkingPressure" type="string">
+            <column name="PARKING_PRESSURE" length="50">
+                <comment>
+                &#184;&#161;&#177;&#234;&#205;&#163;&#193;&#244;&#181;&#196;&#201;&#238;&#182;&#200;&#163;&#168;&#181;&#165;&#206;&#187;&#163;&#186;dbar&#163;&#169;</comment>
+            </column>
+        </property>
+        <property name="deepestPressure" type="string">
+            <column name="DEEPEST_PRESSURE" length="50">
+                <comment>
+                &#184;&#161;&#177;&#234;&#215;&#238;&#180;&#243;&#185;&#219;&#178;&#226;&#201;&#238;&#182;&#200;&#163;&#168;&#181;&#165;&#206;&#187;&#163;&#186;dbar&#163;&#169;</comment>
+            </column>
+        </property>
+    </class>
+</hibernate-mapping>

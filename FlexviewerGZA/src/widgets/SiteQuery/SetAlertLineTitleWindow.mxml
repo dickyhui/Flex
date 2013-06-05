@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   xmlns:supportClasses="com.esri.ags.skins.supportClasses.*"
+			   creationComplete="titlewindow1_creationCompleteHandler(event)"
+			   width="200" height="160">
+	<s:layout>
+		<supportClasses:AttachmentLayout/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.viewer.AppEvent;
+			
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			public var alertValues:Array = new Array();//3个警戒线值
+			
+			protected function titlewindow1_creationCompleteHandler(event:FlexEvent):void
+			{
+				value1.text = alertValues[0];
+				value1.enabled = (value1.text != "NaN");
+				cb_value1.selected = (value1.text != "NaN");
+				
+				value2.text = alertValues[1];
+				value2.enabled = (value2.text != "NaN");
+				cb_value2.selected = (value2.text != "NaN");
+				
+				value3.text = alertValues[2];
+				value3.enabled = (value3.text != "NaN");
+				cb_value3.selected = (value3.text != "NaN");
+			}
+			
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				alertValues[0] = cb_value1.selected?Number(value1.text):Number.NaN;
+				alertValues[1] = cb_value2.selected?Number(value2.text):Number.NaN;
+				alertValues[2] = cb_value3.selected?Number(value3.text):Number.NaN;
+				//从大到小排序
+				alertValues.sort(compareFunction);
+				
+				PopUpManager.removePopUp(this);
+				this.dispatchEvent(new AppEvent(AppEvent.AlertValuesSubmit));
+			}
+			
+			//非要返回大一点的数，0.*好像不可以
+			private function compareFunction(a:Number,b:Number):Number
+			{
+				if(a.toString() == "NaN")
+				{
+					return 1;
+				}
+				else if(b.toString() == "NaN")
+				{
+					return -1
+				}
+				else if((a-b)>=0)
+				{
+					return -1;
+				}
+				else
+				{
+					return 1;
+				}
+			}
+			
+			protected function cb_value1_changeHandler(event:Event):void
+			{
+				if(cb_value1.selected)
+				{
+					value1.enabled = true;
+				}
+				else
+				{
+					value1.enabled = false;
+				}
+			}
+
+
+			protected function cb_value2_changeHandler(event:Event):void
+			{
+				if(cb_value2.selected)
+				{
+					value2.enabled = true;
+				}
+				else
+				{
+					value2.enabled = false;
+				}
+			}
+
+
+			protected function cb_value3_changeHandler(event:Event):void
+			{
+				if(cb_value3.selected)
+				{
+					value3.enabled = true;
+				}
+				else
+				{
+					value3.enabled = false;
+				}
+			}
+
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:VGroup horizontalAlign="center">
+		<s:HGroup verticalAlign="middle" horizontalAlign="center">
+			<s:Label text="1级警戒线: " color="#ABF7F6" />
+			<s:TextInput id="value1" restrict="-0-9." width="60" />
+			<s:CheckBox label="显示" id="cb_value1" change="cb_value1_changeHandler(event)" />
+		</s:HGroup>
+		<s:HGroup verticalAlign="middle" horizontalAlign="center">
+			<s:Label text="2级警戒线: " color="#ABF7F6" />
+			<s:TextInput id="value2" restrict="-0-9."  width="60"/>
+			<s:CheckBox label="显示" id="cb_value2" change="cb_value2_changeHandler(event)" />
+		</s:HGroup>
+		<s:HGroup verticalAlign="middle" horizontalAlign="center">
+			<s:Label text="3级警戒线: " color="#ABF7F6" />
+			<s:TextInput id="value3" restrict="-0-9."  width="60"/>
+			<s:CheckBox label="显示" id="cb_value3" change="cb_value3_changeHandler(event)" />
+		</s:HGroup>
+		<s:Button label="确定"  click="button1_clickHandler(event)"/>
+	</s:VGroup>
+</s:TitleWindow>

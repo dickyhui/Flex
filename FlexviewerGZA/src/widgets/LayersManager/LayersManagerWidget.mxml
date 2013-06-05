@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewer:BaseWidget xmlns:fx="http://ns.adobe.com/mxml/2009"
+				   xmlns:s="library://ns.adobe.com/flex/spark"
+				   xmlns:mx="library://ns.adobe.com/flex/mx"
+				   xmlns:viewer="com.esri.viewer.*"
+				   layout="absolute"
+				   creationComplete="basewidget_creationCompleteHandler(event)" >
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	<fx:Style>
+		@namespace s "library://ns.adobe.com/flex/spark";
+		@namespace mx "library://ns.adobe.com/flex/mx";
+		@namespace viewer "com.esri.viewer.*";
+		@namespace comp "widgets.LayersManager.components.*";
+		
+		comp|LayerInfoDetails {
+			skinClass: ClassReference("widgets.LayersManager.skins.LayerInfoDetailSkin");
+		}
+		
+		comp|LegendManager {
+			skinClass: ClassReference("widgets.LayersManager.skins.LegendManagerSkin");
+		} 
+		
+	</fx:Style>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.viewer.TotalInfo;
+			
+			import mx.events.FlexEvent;
+			
+			import widgets.LayersManager.components.LegendManager;
+
+			/**
+			 * Custom widget to display list of MapServer services that can be dragged
+			 * to a Map.
+			 * For now, only works with Dynamic and Tiled Map Services.
+			 * Based off of tools used in FlexMapTools
+			 * http://github.com/odoe/FlexMapTools
+			 * http://odoe.net/blog/?p=102
+			 * @author rrubalcava
+			 */
+			
+			protected var legendManager:LegendManager
+			
+			protected function basewidget_creationCompleteHandler(event:FlexEvent):void {
+				legendManager = new LegendManager();
+				legendManager.percentWidth = 100;
+				legendManager.percentHeight = 100;
+				legendManager.map = map;
+				
+				wTemplate.addElement(legendManager);
+			}
+			protected function wTemplate_minimizedHandler(event:Event):void
+			{
+				this.verticalCenter=null;
+				this.horizontalCenter=null;
+				this.x=0;
+				this.y=TotalInfo.layerManager;
+			}
+
+			protected function wTemplate_openHandler(event:Event):void
+			{
+				this.verticalCenter=0;
+				this.horizontalCenter=0;
+			}
+
+		]]>
+	</fx:Script>
+	<viewer:WidgetTemplate id="wTemplate"
+						   height="300"
+						   width="350"
+						   minimized="wTemplate_minimizedHandler(event)"
+						   open="wTemplate_openHandler(event)">
+	</viewer:WidgetTemplate>
+</viewer:BaseWidget>

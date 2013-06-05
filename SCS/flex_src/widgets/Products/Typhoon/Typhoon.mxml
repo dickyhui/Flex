@@ -1,0 +1,593 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 creationComplete="group1_creationCompleteHandler(event)"
+		 width="100%" height="100%">
+	<fx:Declarations>
+		<fx:Component id="dataGridSeperator">
+			<s:Line>
+				<s:stroke>
+					<s:SolidColorStroke color="0x696969" weight="1" caps="square"/>
+				</s:stroke>
+			</s:Line>
+		</fx:Component>
+		
+		<s:RemoteObject id="typhInfoHome" destination="typhInfoHome" channelSet="{ new ChannelSet(['my-amf','my-polling-amf'])}" >
+			<s:method name="getTyphoonList" result="getTyphoonList_resultHandler(event)" fault="getTyphoonList_faultHandler(event)" />
+			<s:method name="getTyphoonOnGoing" result="getTyphoonOnGoing_resultHandler(event)" fault="getTyphoonOnGoing_faultHandler(event)" />
+		</s:RemoteObject>
+		<s:RemoteObject id="typhMonitorHome" destination="typhMonitorHome" channelSet="{ new ChannelSet(['my-amf','my-polling-amf'])}" >
+			<s:method name="getTyphoonRoute" result="getTyphoonRoute_resultHandler(event)" fault="getTyphoonRoute_faultHandler(event)" />
+		</s:RemoteObject>
+		<s:RemoteObject id="typhForecastHome" destination="typhForecastHome" channelSet="{ new ChannelSet(['my-amf','my-polling-amf'])}" >
+			<s:method name="getTyphoonForecast" result="getTyphoonForecast_resultHandler(event)" fault="getTyphoonForecast_faultHandler(event)" />
+		</s:RemoteObject>
+	</fx:Declarations>
+	<fx:Metadata>
+		[Event(name="GoBacktoMain",type="flash.events.Event")]
+	</fx:Metadata>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Graphic;
+			import com.esri.ags.Map;
+			import com.esri.ags.events.MapEvent;
+			import com.esri.ags.events.ZoomEvent;
+			import com.esri.ags.geometry.Extent;
+			import com.esri.ags.geometry.Geometry;
+			import com.esri.ags.geometry.MapPoint;
+			import com.esri.ags.geometry.Polyline;
+			import com.esri.ags.layers.GraphicsLayer;
+			import com.esri.ags.symbols.CartographicLineSymbol;
+			import com.esri.ags.symbols.PictureMarkerSymbol;
+			import com.esri.ags.symbols.SimpleLineSymbol;
+			import com.esri.ags.symbols.SimpleMarkerSymbol;
+			import com.esri.ags.symbols.Symbol;
+			import com.esri.ags.utils.WebMercatorUtil;
+			import com.esri.viewer.AppEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.containers.GridItem;
+			import mx.containers.GridRow;
+			import mx.controls.Alert;
+			import mx.controls.dataGridClasses.DataGridItemRenderer;
+			import mx.events.FlexEvent;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.utils.StringUtil;
+			
+			import spark.components.Grid;
+			import spark.events.GridSelectionEvent;
+			import spark.events.IndexChangeEvent;
+			
+			import widgets.Products.ProductsUIComponent;
+			import widgets.Products.ProductsWidgetXml;
+			[Embed(source="assets/images/Error.png")]
+			private var errorLogo:Class;
+			[Bindable]
+			public var map:Map;
+			[Bindable]
+			private var typhoonList:ArrayCollection = new ArrayCollection();
+			private var typhoonMonitorList:ArrayCollection = new ArrayCollection();
+			private var typhoonLayer:GraphicsLayer;
+			//画台风轨迹图
+			private var pointList:ArrayCollection = new ArrayCollection();
+			private var pointGraphic:Graphic = new Graphic();
+			private var LineGraphic:Graphic = new Graphic();
+			private var currentPoint:MapPoint = new MapPoint();
+			private var typhoonSymbol:PictureMarkerSymbol;//("assets/images/TyphoonIco.swf",0,0,8,-9);
+			private var markSymbol:SimpleMarkerSymbol= new SimpleMarkerSymbol(SimpleMarkerSymbol.STYLE_CIRCLE,8,0x0000ff);
+			private var lineSymbol:SimpleLineSymbol = new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID,0x0000ff,0.6,2);
+			private var startPt:MapPoint = new MapPoint();
+			private var endPt:MapPoint = new MapPoint();
+			private var vx:Number;
+			private var vy:Number;
+			private const v:Number = 8000;//赤道附近0.1°大于10000米，数据精度到0.1°，所以取5000不会出错
+			private const sca:Number = v/2;
+			private var currentIdx:int;
+			
+			private var radiusLayer:GraphicsLayer;//台风七级风圈图层
+			private var radiusGraphicObject:Object = {x:0,y:0,r:0};//风圈半径数据结构
+			
+			private var forecastLayer:GraphicsLayer;//台风预报图层
+			
+			protected function group1_creationCompleteHandler(event:FlexEvent):void
+			{
+				//监听map实例化完毕的函数
+				AppEvent.addListener(AppEvent.MAPINITIALIZED,MapInitializedListener);
+				//查询是否有正在刮的台风
+				//AppEvent.addListener(AppEvent.EXPANDPRODUCTSWIDGET,function():void{typhInfoHome.getTyphoonOnGoing();});
+			}
+			protected function MapInitializedListener(event:AppEvent):void
+			{
+				this.map = event.data as Map;
+			}
+			//从main状态切换过来执行的函数
+			private var once:Boolean=true;
+			public function changeFunction():void
+			{
+				//只执行一次
+				if(once)
+				{
+					once=false;
+					//map添加台风图层
+					addTyphoonLayer();
+					//设置年份下拉框的数据源
+					ddl_Year.dataProvider = new ArrayCollection(ProductsWidgetXml.tyPhoonYears);
+					ddl_Year.selectedIndex = 0;
+					//查询当前年份的台风数据
+					ddl_Year_changeHandler(null);
+					//查询是否有正在刮的台风
+					typhInfoHome.getTyphoonOnGoing();
+				}
+			}
+			//map添加台风图层
+			protected function addTyphoonLayer():void
+			{
+				//台风七级风圈图层
+				radiusLayer = new GraphicsLayer();
+				radiusLayer.name = "TyphoonRadius Layer";
+				radiusLayer.id = "TyphoonRadiusLayer";
+				radiusLayer.visible = false;
+				radiusLayer.autoMoveGraphicsToTop = false;
+				map.addLayer(radiusLayer);
+				map.addEventListener(ZoomEvent.ZOOM_START, function (e:ZoomEvent):void{
+					refleshRadiusGraphic();
+				});
+				//台风预报图层
+				forecastLayer = new GraphicsLayer();
+				forecastLayer.name = "TyphoonForecast Layer";
+				forecastLayer.id = "TyphoonForecastLayer";
+				forecastLayer.visible = false;
+				forecastLayer.autoMoveGraphicsToTop = false;
+				map.addLayer(forecastLayer);
+				//台风轨迹图层
+				typhoonLayer = new GraphicsLayer();
+				typhoonLayer.name = "Typhoon Layer";
+				typhoonLayer.id = "TyphoonLayer";
+				typhoonLayer.visible = false;
+				typhoonLayer.document = new ArrayCollection(["typhoon"]);
+				map.addLayer(typhoonLayer);
+			}
+			//回到main
+			protected function goBack_clickHandler(event:MouseEvent):void
+			{
+				removeTyphoonLayer();
+				
+				var goBacktoMain:Event=new Event("GoBacktoMain", true);
+				this.dispatchEvent(goBacktoMain);
+			}
+			
+			protected function getTyphoonForecast_resultHandler(event:ResultEvent):void
+			{
+				if(event.result != null)
+				{
+					//三条预报线循环
+					for each(var tfList:ArrayCollection in event.result)
+					{
+						var ring:Array = new Array();
+						ring.push(pointList[pointList.length-1]);
+						//处理每条预报线
+						for each(var tf:TyphForecast in tfList)
+						{
+							var mapPoint:MapPoint = WebMercatorUtil.geographicToWebMercator(new MapPoint(tf.lon,tf.lat)) as MapPoint;
+							setSymbolStyle(tf.strength);
+							var graphic:Graphic = getPointGraphic(mapPoint.x,mapPoint.y,markSymbol);//设置节点标志和事件监听
+							graphic.attributes = tf;//设置节点属性
+							forecastLayer.add(graphic);//添加节点
+							
+							ring.push(mapPoint);
+						}
+						var polyline:Polyline = new Polyline();
+						polyline.addPath(ring);
+						var forecastGraphic:Graphic = new Graphic();
+						forecastGraphic.symbol = getTyphForecastSimpleLineSymbol(tfList.getItemAt(0).id.tm);
+						forecastGraphic.geometry = polyline;
+						forecastLayer.add(forecastGraphic);
+					}
+				}
+			}
+			
+			protected function getTyphForecastSimpleLineSymbol(tm:String):SimpleLineSymbol
+			{
+				var sls:SimpleLineSymbol = new SimpleLineSymbol(SimpleLineSymbol.STYLE_DOT,0xff0000,1,3);
+				switch(tm)
+				{
+					case "中心":
+						sls.color = 0xff0000;
+						break;
+					case "日本":
+						sls.color = 0x000000;
+						break;
+					case "中国":
+						sls.color = 0x0000ff;
+						break;
+				}
+				return sls;
+			}
+			protected function getTyphoonForecast_faultHandler(event:FaultEvent):void
+			{
+				Alert.show("台风预报数据查询出错","服务器异常", 4, null, null,errorLogo);
+			}
+			
+			protected function getTyphoonOnGoing_resultHandler(event:ResultEvent):void
+			{
+				//如果有正在挂的台风,就加载台风
+				if(event.result != null)
+				{
+					var typhInfo:TyphInfo = event.result as TyphInfo;
+					typhMonitorHome.getTyphoonRoute(typhInfo.typhNum);
+					
+//					dataGrid.selectedIndex = 0;
+//					var a:GridRow = dataGrid.selectedItem as GridRow;
+//					a.setStyle("backgroundColor",0xffffff);
+				}
+			}
+			
+			protected function getTyphoonOnGoing_faultHandler(event:FaultEvent):void
+			{
+				Alert.show("台风数据查询出错","服务器异常", 4, null, null,errorLogo);
+			}
+			
+			protected function getTyphoonList_resultHandler(event:ResultEvent):void
+			{
+				typhoonList.removeAll();
+				if(event.result != null)
+				{
+					var result:ArrayCollection = event.result as ArrayCollection;
+					for each(var typhoon:Object in result)
+					{
+						typhoonList.addItem({"typhoonName":StringUtil.trim(typhoon.chName) + " " + StringUtil.trim(typhoon.enName),
+							"typhoonNum":typhoon.typhNum});
+					}
+					dataGrid.invalidateDisplayList();
+				}
+			}
+			
+			protected function getTyphoonList_faultHandler(event:FaultEvent):void
+			{
+				Alert.show("台风数据无法加载","服务器异常", 4, null, null,errorLogo);
+			}
+			
+			protected function getTyphoonRoute_resultHandler(event:ResultEvent):void
+			{
+				if(event.result != null)
+				{
+					typhoonMonitorList = event.result as ArrayCollection;
+					typhoonLayer.clear();
+					typhoonLayer.visible = true;
+					radiusLayer.visible = true;
+					forecastLayer.visible = true;
+					moveTyphoonTop();//将台风图层移到最顶端，显示台风图例
+					pointList.removeAll();
+					var mapPoint:MapPoint = geographicToMercator(new MapPoint((typhoonMonitorList[0] as TyphMonitor).lon,(typhoonMonitorList[0] as TyphMonitor).lat));
+					var xmin:Number = mapPoint.x;
+					var xmax:Number = mapPoint.x;
+					var ymin:Number = mapPoint.y;
+					var ymax:Number = mapPoint.y;
+					for each (var monitor:TyphMonitor in typhoonMonitorList)
+					{
+						mapPoint = geographicToMercator(new MapPoint(monitor.lon,monitor.lat));
+						pointList.addItem(mapPoint);
+						if (mapPoint.x < xmin)
+						{
+							xmin = mapPoint.x;
+						}
+						if (mapPoint.x > xmax)
+						{
+							xmax = mapPoint.x;
+						}
+						if (mapPoint.y < ymin)
+						{
+							ymin = mapPoint.y;
+						}
+						if (mapPoint.y > ymax)
+						{
+							ymax = mapPoint.y;
+						}
+					}
+					map.extent = new Extent(xmin, ymin, xmax, ymax, map.spatialReference);
+					map.extent = map.extent.expand(2);
+					
+					//渲染节点和线的颜色
+					//线的颜色和下一个节点的颜色相同
+					currentIdx = 0;
+					setSymbolStyle((typhoonMonitorList[currentIdx] as TyphMonitor).strength);
+					if(typhoonMonitorList.length >1)
+					{
+						startPt = pointList[0] as MapPoint;
+						endPt = pointList[1] as MapPoint;
+						currentPoint = new MapPoint(startPt.x,startPt.y);
+						conculateXY(startPt,endPt);
+						typhoonSymbol = new PictureMarkerSymbol("assets/images/TyphoonIcon.png",58,58,0,0);//58
+						pointGraphic = new Graphic(startPt,typhoonSymbol);
+						typhoonLayer.add(pointGraphic);//有台风图片的当前节点
+						var graphic:Graphic = getPointGraphic(startPt.x,startPt.y,markSymbol);//设置节点标志和事件监听
+						graphic.attributes = typhoonMonitorList.getItemAt(currentIdx);//设置节点属性
+						typhoonLayer.add(graphic);//添加节点
+						currentIdx++;
+						setSymbolStyle((typhoonMonitorList[currentIdx] as TyphMonitor).strength);
+						LineGraphic = new Graphic(new Polyline([[startPt,currentPoint]],map.spatialReference),lineSymbol);
+						typhoonLayer.add(LineGraphic);//线段
+						stage.addEventListener(Event.ENTER_FRAME,onEnterFrame);
+					}
+					else//只有一个点的情况
+					{
+						startPt = pointList[0] as MapPoint;
+						var graphic:Graphic = getPointGraphic(endPt.x,endPt.y,markSymbol);//设置节点标志和事件监听
+						graphic.attributes = typhoonMonitorList.getItemAt(currentIdx);//设置节点属性
+						typhoonLayer.add(graphic);//添加节点
+					}
+				}
+			}
+			
+			protected function onEnterFrame(event:Event):void
+			{
+				currentPoint.update(currentPoint.x+vx,currentPoint.y+vy,map.spatialReference);
+				pointGraphic.geometry = currentPoint;
+				pointGraphic.refresh();
+				var line:Polyline = LineGraphic.geometry as Polyline;
+				if(Math.abs(endPt.x-currentPoint.x)<sca&&Math.abs(endPt.y-currentPoint.y)<sca)
+				{
+					currentPoint.x = endPt.x;
+					currentPoint.y = endPt.y;
+					typhoonLayer.add(new Graphic(new Polyline([[startPt,endPt]],map.spatialReference),lineSymbol));//添加线段
+					var graphic:Graphic = getPointGraphic(endPt.x,endPt.y,markSymbol);//设置节点标志和事件监听
+					graphic.attributes = typhoonMonitorList.getItemAt(currentIdx);//设置节点属性
+					typhoonLayer.add(graphic);//添加节点
+					currentIdx++;
+					if(pointList.length>currentIdx)
+					{
+						line.setPoint(0,0,endPt);
+						//LineGraphic.symbol = lineSymbol;
+						startPt = endPt;
+						endPt = pointList[currentIdx];
+						conculateXY(startPt,endPt);//根据始末点计算台风x和y方向的速度
+						setSymbolStyle((typhoonMonitorList[currentIdx] as TyphMonitor).strength);//设置点和线的渲染颜色
+					}
+					else//轨迹图绘制完毕
+					{
+						pointGraphic.geometry = currentPoint;
+						pointGraphic.refresh();
+						typhoonSymbol.source = "assets/images/TyphoonIco.swf";
+						if(stage.hasEventListener(Event.ENTER_FRAME))
+						{
+							stage.removeEventListener(Event.ENTER_FRAME,onEnterFrame);
+						}
+						queryForecastRoute();//查询台风预报路线
+						drawLastRadius();//绘制最后一个风圈
+						return;
+					}
+				}
+				line.setPoint(0,1,currentPoint);
+				LineGraphic.geometry = line;
+				LineGraphic.refresh();
+			}
+			
+			private function queryForecastRoute():void
+			{
+				var typhNum:Number = (typhoonMonitorList.getItemAt(0) as TyphMonitor).id.typhNum
+				typhForecastHome.getTyphoonForecast(typhNum);//查询预报路径
+			}
+			
+			//根据始末点计算台风x和y方向的速度
+			private function conculateXY(s:MapPoint,e:MapPoint):void
+			{
+				var dy:Number = e.y- s.y;
+				var dx:Number = e.x- s.x;
+				var angle:Number = Math.atan2(dy,dx);
+				vx = (dy==0&&dx==0)?0:v*Math.cos(angle);
+				vy = (dy==0&&dx==0)?0:v*Math.sin(angle);
+			}
+			//设置点和线的渲染颜色
+			private function setSymbolStyle(strength:String):void
+			{
+				var color:Number = getColorbyStrength(strength);
+				markSymbol = new SimpleMarkerSymbol(SimpleMarkerSymbol.STYLE_CIRCLE,8,color);
+				lineSymbol = new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID,color,0.6,2);
+			}
+			
+			private function getColorbyStrength(strength:String):Number
+			{
+				switch(strength)
+				{
+					case "TD"://热带低压（TD）：10.8－17.1米/秒（6－7级）
+						return 0x00ff00;
+					case "TS"://热带风暴（TS）：17.2－24.4米/秒（8－9级）
+						return 0x0062ff;
+					case "STS"://强热带风暴（STS）：24.5－32.6米/秒（10－11级）
+						return 0xffff00;
+					case "TY"://台风（TY）：32.7－36.9米/秒（12级），37.0－41.4（13级）
+						return 0xfeac03;
+					case "STY"://强台风（STY）：41.5－46.1米/秒（14级），46.2－50.9米/秒（15级）
+						return 0xf172f6;
+					case "SUPERTY"://超强台风（SUPERTY）：51.0－56.0米/秒（16级），≥56.1（17级） 
+						return 0xff0000;
+					default:
+						return 0;
+				}
+			}
+			protected function getTyphoonRoute_faultHandler(event:FaultEvent):void
+			{
+				Alert.show("台风路径数据无法加载","服务器异常", 4, null, null,errorLogo);
+			}
+			
+			//查询当前年份的台风数据
+			protected function ddl_Year_changeHandler(event:IndexChangeEvent):void
+			{
+				typhInfoHome.getTyphoonList(Number(ddl_Year.selectedItem));
+			}
+			
+			
+			protected function dataGrid_selectionChangeHandler():void
+			{
+				removeTyphoonLayer();
+				typhMonitorHome.getTyphoonRoute(int(dataGrid.selectedItem.typhoonNum));
+			}
+			
+			private function geographicToMercator(geo:MapPoint):MapPoint
+			{
+				return WebMercatorUtil.geographicToWebMercator(geo) as MapPoint;
+			}
+			
+			//将台风图层移到最顶端，显示台风图例
+			protected function moveTyphoonTop():void
+			{
+				typhoonLayer.visible = true;
+				if(map.layerIds[(map.layers as ArrayCollection).length-1] != typhoonLayer.id)
+				{
+					map.reorderLayer(typhoonLayer.id,(map.layers as ArrayCollection).length-1);
+				}
+				else
+				{
+					//没有reorder则分发图层加载事件
+					var me:MapEvent=new MapEvent(MapEvent.LAYER_ADD);
+					map.dispatchEvent(me as Event);
+				}
+			}
+			//移除台风图层
+			public function removeTyphoonLayer():void
+			{
+				if(stage.hasEventListener(Event.ENTER_FRAME))
+				{
+					stage.removeEventListener(Event.ENTER_FRAME,onEnterFrame);
+				}
+				if(typhoonLayer == null) return;
+				//移除台风轨迹
+				typhoonLayer.clear();
+				typhoonLayer.visible = false;
+				//移除台风风圈半径
+				radiusGraphicObject.r = 0;
+				radiusLayer.clear();
+				radiusLayer.visible = false;
+				//移除台风预报轨迹
+				forecastLayer.visible = false;
+				forecastLayer.clear();
+				//移除台风图例
+				var me:MapEvent=new MapEvent(MapEvent.LAYER_ADD);
+				map.dispatchEvent(me as Event);
+			}
+			//设置GRAPHIC的符号和事件
+			private function getPointGraphic(x:Number,y:Number,symbol:Symbol,name:String="",b:Boolean=true):Graphic
+			{
+				var gra:Graphic = new Graphic(new MapPoint(x,y,map.spatialReference),symbol);
+				if(name != "")
+				{
+					gra.name = name;
+				}
+				if(b)
+				{
+					gra.addEventListener(MouseEvent.MOUSE_OVER,onMouseOver);
+					gra.addEventListener(MouseEvent.MOUSE_OUT,onMouseOut);
+					gra.addEventListener(MouseEvent.CLICK,onMouseClick);
+					gra.buttonMode = true;
+					gra.useHandCursor = true;
+				}
+				return gra;
+			}
+			private function onMouseOver(event:MouseEvent):void
+			{
+				var graphic:Graphic = event.currentTarget as Graphic;
+				(graphic.symbol as SimpleMarkerSymbol).size = 15;
+			}
+			private function onMouseOut(event:MouseEvent):void
+			{
+				var graphic:Graphic = event.currentTarget as Graphic;
+				(graphic.symbol as SimpleMarkerSymbol).size = 8;
+			}
+			//鼠标事件，获取点的信息绘制风圈
+			private function onMouseClick(event:MouseEvent):void
+			{
+				var graphic:Graphic = event.currentTarget as Graphic;
+				var typhMonitor:* = graphic.attributes;//有可能是轨迹点，也可能是预报点
+				radiusGraphicObject.x=typhMonitor.lon;
+				radiusGraphicObject.y=typhMonitor.lat;
+				radiusGraphicObject.r=typhMonitor.radius7;
+				refleshRadiusGraphic();
+			}
+			
+			//绘制最后一个点的风圈
+			private function drawLastRadius():void
+			{
+				var typhMonitor:TyphMonitor = typhoonMonitorList.getItemAt(typhoonMonitorList.length-1) as TyphMonitor;
+				radiusGraphicObject.x=typhMonitor.lon;
+				radiusGraphicObject.y=typhMonitor.lat;
+				radiusGraphicObject.r=typhMonitor.radius7;
+				refleshRadiusGraphic();
+			}
+			
+			private function calRadius(r:Number):Number
+			{
+				var resolution:Number = map.lods[map.level].resolution;
+				return r*1000/resolution;
+			}
+			
+			//重新绘制七级风圈半径
+			private function refleshRadiusGraphic():void
+			{
+				radiusLayer.clear();
+				if(radiusGraphicObject.r>0)
+				{
+					var radiusGraphic:Graphic = new Graphic();
+					var x:Number = radiusGraphicObject.x;
+					var y:Number = radiusGraphicObject.y;
+					var r:Number = radiusGraphicObject.r;
+					radiusGraphic.geometry = geographicToMercator(new MapPoint(x,y));
+					radiusGraphic.symbol = 	new SimpleMarkerSymbol(SimpleMarkerSymbol.STYLE_CIRCLE,calRadius(r),0x696969,0.4,0,0,0,
+						new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID,0x696969,1,2));
+					radiusLayer.add(radiusGraphic);
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	<s:BorderContainer top="5" width="230" left="10" height="35" borderWeight="2"
+					   styleName="BorderContainer" >
+		<s:Label x="10" y="10"  styleName="LabelTitle" text="台风警报" />
+		<!--<s:Image x="145" y="4" source="assets/images/arrow-previous.png" />-->
+		<!--<mx:LinkButton id="reset" label="移除" styleName="LabelTitle" 
+					   x="125" y="3" click="removeTyphoonLayer()" />-->
+		<mx:LinkButton id="goBack" label="返回" styleName="LabelTitle" 
+					   y="3" right="10" click="goBack_clickHandler(event)" />
+	</s:BorderContainer>
+	<s:BorderContainer top="45"  width="230" left="10" height="30"
+					   styleName="BorderContainer" >
+		<s:Label  x="10" y="8" text="年份:" />
+		<s:DropDownList id="ddl_Year" x="50" y="3" width="80"
+						selectedIndex="0" change="ddl_Year_changeHandler(event)" />
+	</s:BorderContainer>
+	<s:DataGrid id="dataGrid" top="80" width="230" left="10" height="100%"
+				variableRowHeight="false" rowHeight="25"
+				skinClass="widgets.Products.Typhoon.DataGridSkin"
+				dataProvider="{typhoonList}" selectionChange="dataGrid_selectionChangeHandler()">
+		<s:columns>
+			<s:ArrayList>
+				<s:GridColumn dataField="typhoonNum"  headerText="台风号" >
+					<s:itemRenderer>
+						<fx:Component>
+							<s:GridItemRenderer>
+								<s:Label x="4" y="7" text="{data.typhoonNum}"/>
+							</s:GridItemRenderer>
+						</fx:Component>
+					</s:itemRenderer>
+				</s:GridColumn>
+				<s:GridColumn dataField="typhoonName" headerText="台风名">
+					<s:itemRenderer>
+						<fx:Component>
+							<s:GridItemRenderer>
+								<s:Label x="4" y="7" text="{data.typhoonName}"/>
+							</s:GridItemRenderer>
+						</fx:Component>
+					</s:itemRenderer>
+				</s:GridColumn>
+			</s:ArrayList>
+		</s:columns>
+	</s:DataGrid>
+	<!--<mx:AdvancedDataGrid id="dataGrid" top="80" width="230" left="10" height="100%" sortExpertMode="false" groupRowHeight="20"
+	dataProvider="{typhoonList}" itemClick="dataGrid_selectionChangeHandler()">
+	<mx:columns>
+	<mx:AdvancedDataGridColumn dataField="typhoonNum" headerText="台风号"/>
+	<mx:AdvancedDataGridColumn dataField="typhoonName" headerText="台风名"/>
+	</mx:columns>
+	</mx:AdvancedDataGrid>-->
+</s:Group>

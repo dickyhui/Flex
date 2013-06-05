@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+///////////////////////////////////////////////////////////////////////////
+//ProductsWidget
+//实现停靠在窗口右边的可伸缩的产品小部件
+//若要添加新的功能，操作流程如下：
+//1、编写界面和功能mxml，继承自ProductBase(如ProductArgoSite.mxml)
+//2、在config.xml中添加header配置信息，
+//	如<header label="Argo浮标" icon="assets/images/headerGCSK.png" config="xml/DB_Config.xml" url="argoSite" />
+//3、在ProductsItemDataGroup中添加路由信息，如：case "argoSite":...
+//
+//林贤辉
+//2013-03-22
+///////////////////////////////////////////////////////////////////////////
+-->
+<viewer:BaseWidget xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx" 
+				   xmlns:viewer="com.esri.viewer.*"
+				   xmlns:Products="widgets.Products.*"
+				   height="100%" right="0"
+				   widgetConfigLoaded="widgetConfigLoadedHandler(event)"
+				   preinitialize="preinitializeHandler(event)"
+				   >
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.utils.StringUtil;
+			import com.esri.viewer.AppEvent;
+			import com.esri.viewer.ViewerContainer;
+			import com.util.GlobalErrorHandler;
+			
+			import mx.collections.ArrayCollection;
+			import mx.core.FlexGlobals;
+			import mx.events.FlexEvent;
+			import mx.managers.ToolTipManager;
+			import mx.utils.StringUtil;
+			
+			import widgets.HeaderController.HeaderItem;
+			
+			[Bindable]
+			private var productItemArrCol:ArrayCollection;
+			
+			//提醒登陆界面该widget加载完毕
+			protected function preinitializeHandler(event:FlexEvent):void
+			{
+				AppEvent.dispatch(AppEvent.WIDGETDOWNLOADCOMPLETE);
+			}
+			
+			protected function widgetConfigLoadedHandler(event:Event):void
+			{
+				//读取widget配置文件，导入公共类ProductsWidgetXml中
+				if(configXML)
+				{
+					ProductsWidgetXml.productsWidgetXmlLoaded = true;
+					ProductsWidgetXml.map = map;
+					ProductsWidgetXml.serverIP = configXML.ip;
+					ProductsWidgetXml.seaAreaList = configXML.SeaAreaList[0];
+					var tyPhoonYears:String = configXML.tyPhoonYears;
+					ProductsWidgetXml.tyPhoonYears = mx.utils.StringUtil.trim(tyPhoonYears).split(",");
+					
+					AppEvent.dispatch(AppEvent.PRODUCTCONFIGLOADED);
+				}
+				//设置提示延时
+				ToolTipManager.showDelay = 0;
+				//读取总的配置文件(config.xml)中的header
+				if (configData)
+				{
+					productItemArrCol = getProductItems(configData.headers);
+				}
+				//打开合拢product面板
+				toggleIcon.addEventListener(MouseEvent.CLICK, toggleIcon_clickHandler);
+				//点击header的事件，打开相应的产品界面
+				AppEvent.addListener(AppEvent.CHANGEPRODUCTVIEW,onChangeProductView);
+			}
+			protected function getProductItems(headerList:Array):ArrayCollection
+			{
+				var menuItems:ArrayCollection = new ArrayCollection;
+				var headerItem:HeaderItem;
+				for (var i:int = 0; i < headerList.length; )
+				{
+					headerItem = new HeaderItem;
+					headerItem.id = headerList[i].id;
+					headerItem.label = headerList[i].label;
+					headerItem.icon = headerList[i].icon;
+					headerItem.url = headerList[i].url;
+					headerItem.open = headerList[i].preload;
+					
+					menuItems.addItem(headerItem);
+					
+					i++;
+				}
+				
+				return menuItems;
+			}
+			
+			//打开或关闭产品界面
+			//传来的数据有两类：
+			//1、需要打开的产品视图的字符串名称：
+			//	将该产品视图open设为true，其他设为false
+			//	触发与视图绑定的数据改变事件B（见ProductBase的dataChangeHandler）
+			//	如果需要打开视图，再在该事件B中分发第二类数据消息
+			//2、需要打开的产品视图本身
+			//	如果视图当前是不可视状态，则执行changeView，使其可视
+			private function onChangeProductView(event:AppEvent):void
+			{
+				currentState='expanded';
+				if(event.data is String)
+				{
+					for(var i:int=0;i<productItemArrCol.length;i++)
+					{
+						if(productItemArrCol.getItemAt(i).url == event.data)
+						{
+							productItemArrCol.getItemAt(i).open = true;
+						}
+						else
+						{
+							productItemArrCol.getItemAt(i).open = false;
+						}
+					}
+				}
+				else if(event.data is DisplayObject)
+				{
+					var product:DisplayObject = event.data as DisplayObject
+					if(product.visible == false)
+					{
+						changeView(product);
+					}
+				}
+				
+				//点击返回键，显示主面板
+				if(event.data is String && event.data=="")
+				{
+					productMainPanel.visible = true;
+				}
+				else 
+				{
+					productMainPanel.visible = false;
+				}
+			}
+			
+			protected function changeView(product:DisplayObject):void
+			{				
+				fadeAdd.target = product;
+				fadeAdd.end();
+				fadeAdd.play();// 显示动画
+			}
+			
+			//打开合拢product面板
+			private function toggleIcon_clickHandler(event:MouseEvent):void
+			{
+				currentState = (currentState == "collapsed") ? "expanded" : "collapsed";
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<s:Fade id="fadeAdd"  alphaFrom="0" alphaTo="1" duration="500" repeatCount="1" />
+	</fx:Declarations>
+	<fx:Declarations>
+		<s:Fade
+			id="onRollOverAlpha"
+			duration="400"
+			alphaFrom="0.4"
+			alphaTo="1"/>
+		<s:Fade
+			id="onRollOutAlpha"
+			duration="400"
+			alphaFrom="1"
+			alphaTo="0.4"/>
+	</fx:Declarations>
+	<viewer:states>
+		<s:State name="collapsed"/>
+		<s:State name="expanded"/>
+	</viewer:states>
+	
+	<viewer:transitions>
+		<s:Transition fromState="*" toState="*">
+			<s:Sequence>
+				<s:Resize duration="800" target="{viewBox}"/>
+				<s:Rotate angleBy="180"  
+						  autoCenterTransform="true"
+						  duration="50"
+						  target="{toggleIcon}"/>
+			</s:Sequence>
+		</s:Transition>
+	</viewer:transitions>
+	<s:Group id="productsUICom" height="100%" right="0">
+		<s:BorderContainer id="viewBox" 
+						   width.collapsed="{toggleIcon.width}" width.expanded="{250+toggleIcon.width}" 
+						   height.collapsed="100%" height.expanded="100%"
+						   backgroundAlpha="0" borderVisible="false">
+			<s:BorderContainer right="-1" height="100%" width="{viewBox.width - toggleIcon.width}"
+							   styleName="ProductBorderContainer" >
+				<s:Group id="productMainPanel" height="100%">
+					<Products:ProductMain />
+				</s:Group>
+				<!-- products-->
+				<Products:ProductsItemDataGroup id="productsItemDataGroup" 
+												dataProvider="{productItemArrCol}"/>
+			</s:BorderContainer>
+			<s:VGroup width="{toggleIcon.width}" height="100%"
+					  verticalAlign="middle">
+				<mx:Image id="toggleIcon"
+						  width="48" height="48"
+						  buttonMode="true"
+						  smoothBitmapContent="true"
+						  source="assets/images/navigation-left.png"
+						  alpha="0.4"
+						  rollOutEffect="{onRollOutAlpha}"
+						  rollOverEffect="{onRollOverAlpha}"
+						  useHandCursor="true"/>
+			</s:VGroup>
+			<s:VGroup width="{logoIcon.width}" height="100%" left="-52"
+					  verticalAlign="top">
+				<mx:Image id="logoIcon"
+						  width="100" height="100"
+						  smoothBitmapContent="true"
+						  source="assets/images/nmefcLogo.png"/>
+			</s:VGroup>
+		</s:BorderContainer>
+	</s:Group>
+</viewer:BaseWidget>

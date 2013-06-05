@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<flexProperties enableServiceManager="false" flexServerFeatures="4" flexServerType="8" flexWarLocation="F:/adobe/flex/blazeds.war" fmlDataModelLocation=".model/NIO.fml" serverContextRoot="/NIO" serverRoot="E:/weboers/各种版本/NIO/WebRoot" serverRootURL="http://localhost:8080/NIO/bin-debug" toolCompile="true" useServerFlexSDK="false" version="2"/>

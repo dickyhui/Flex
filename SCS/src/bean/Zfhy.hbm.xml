@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<!-- Generated 2012-11-25 21:12:47 by Hibernate Tools 3.4.0.CR1 -->
+<hibernate-mapping>
+    <class name="bean.Zfhy" table="ZFHY">
+        <composite-id name="id" class="bean.ZfhyId">
+            <key-property name="hymc" type="string">
+                <column name="HYMC" length="50" />
+            </key-property>
+            <key-property name="ybtc" type="long">
+                <column name="YBTC" precision="10" scale="0" />
+            </key-property>
+        </composite-id>
+        <property name="qbsj">
+            <column name="QBSJ" not-null="true">
+                <comment>&#198;&#240;&#177;&#168;&#202;&#177;&#188;&#228;</comment>
+            </column>
+        </property>
+        <property name="tqqk" type="string">
+            <column name="TQQK" length="50">
+                <comment>&#204;&#236;&#198;&#248;&#199;&#233;&#191;&#246;</comment>
+            </column>
+        </property>
+        <property name="fx" type="string">
+            <column name="FX" length="50">
+                <comment>&#183;&#231;&#207;&#242;</comment>
+            </column>
+        </property>
+        <property name="fs" type="string">
+            <column name="FS" length="50">
+                <comment>&#183;&#231;&#203;&#217;</comment>
+            </column>
+        </property>
+        <property name="scfw" type="string">
+            <column name="SCFW" length="50">
+                <comment>&#202;&#211;&#179;&#204;&#183;&#182;&#206;&#167;</comment>
+            </column>
+        </property>
+        <property name="fl" type="string">
+            <column name="FL" length="50">
+                <comment>&#183;&#231;&#192;&#203;</comment>
+            </column>
+        </property>
+        <property name="yl" type="string">
+            <column name="YL" length="50">
+                <comment>&#211;&#191;&#192;&#203;</comment>
+            </column>
+        </property>
+    </class>
+</hibernate-mapping>

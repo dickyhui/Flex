@@ -1,0 +1,468 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Products:ProductBase
+	xmlns:fx="http://ns.adobe.com/mxml/2009" 
+	xmlns:s="library://ns.adobe.com/flex/spark" 
+	xmlns:mx="library://ns.adobe.com/flex/mx" 
+	xmlns:Products="widgets.Products.*"
+	creationComplete="creationCompleteHandler(event)"
+	itemTitle="气象">
+	<fx:Declarations>
+		<s:SolidColorStroke id="stroke" color="0x7b7b7b" weight="1" />
+		<s:Fade id="fadeAdd"  alphaFrom="0" alphaTo="1" duration="500" repeatCount="1" />
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Graphic;
+			import com.esri.ags.Map;
+			import com.esri.ags.SpatialReference;
+			import com.esri.ags.events.LayerEvent;
+			import com.esri.ags.events.ZoomEvent;
+			import com.esri.ags.geometry.Extent;
+			import com.esri.ags.geometry.MapPoint;
+			import com.esri.ags.geometry.Polygon;
+			import com.esri.ags.layers.GraphicsLayer;
+			import com.esri.ags.layers.Layer;
+			import com.esri.ags.symbols.PictureFillSymbol;
+			import com.esri.viewer.AppEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.effects.Zoom;
+			import mx.events.FlexEvent;
+			import mx.events.IndexChangedEvent;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.http.HTTPService;
+			
+			import spark.events.IndexChangeEvent;
+			
+			import widgets.Products.ProductsWidgetXml;
+			
+			[Bindable]
+			public var map:Map;
+			private var productDateArray:Array = ["暂无数据","暂无数据"];
+			[Bindable]
+			private var productDate:String = "暂无数据";
+			private var layerMaxMinDict:Dictionary = new Dictionary();
+			
+			protected function creationCompleteHandler(event:FlexEvent):void
+			{
+				this.map = ProductsWidgetXml.map;
+				map.addEventListener(ZoomEvent.ZOOM_START,ZOOM_STARTHandler);
+			}
+			public override function closeProductFunction():void
+			{
+				removeExistLayers();
+			}
+			public override function openProductFunctionEveryTime():void
+			{
+				accordion_changeHandler(null);
+			}
+			public override function openProductFunctionOnce():void
+			{
+				getLayerDate();
+			}
+			
+			//读取时间文件，获取图层的时间和填色图的最大最小值
+			protected function getLayerDate():void
+			{
+				var httpService:HTTPService = new HTTPService();
+				httpService = new HTTPService();
+				httpService.resultFormat = HTTPService.RESULT_FORMAT_E4X;
+				httpService.addEventListener(ResultEvent.RESULT, getLayerDate_resultHandler);
+				httpService.addEventListener(FaultEvent.FAULT, getLayerDate_faultHandler);
+				httpService.url = "http://" + ProductsWidgetXml.serverIP + "/img_nio/Wind/wind00.xml?"+Math.random();
+				httpService.send();
+				
+				httpService = new HTTPService();
+				httpService.resultFormat = HTTPService.RESULT_FORMAT_E4X;
+				httpService.addEventListener(ResultEvent.RESULT, getLayerDate_resultHandler);
+				httpService.addEventListener(FaultEvent.FAULT, getLayerDate_faultHandler);
+				httpService.url = "http://" + ProductsWidgetXml.serverIP + "/img_nio/Wind/wind12.xml?"+Math.random();
+				httpService.send();
+			}
+			protected function getLayerDate_resultHandler(event:ResultEvent):void
+			{
+				var result:XML = event.result as XML;
+				//气象数据00时
+				if((event.currentTarget.url as String).indexOf("wind00") != -1)
+				{
+					//读取气象时间
+					var date:String = result.@date||"暂无数据";
+					if(date.length == 10)
+					{
+						productDateArray[0] = date;
+					}
+					setNearestDate();
+				}
+					//气象数据12时
+				else if((event.currentTarget.url as String).indexOf("wind12") != -1)
+				{
+					//读取气象时间
+					var date:String = result.@date||"暂无数据";
+					if(date.length == 10)
+					{
+						productDateArray[1] = date;
+					}
+					setNearestDate();
+				}
+				//读取最大最小值
+				for each(var node:XML in result.children())
+				{
+					layerMaxMinDict[node.name()]={"Max":node.@Max,"Min":node.@Min};
+				}
+			}
+			
+			protected function setNearestDate():void
+			{
+				if(productDateArray[0] == productDateArray[1])
+				{
+					productDate = productDateArray[1];
+					ddl_prodHour.selectedIndex = 1;
+				}
+				else
+				{
+					productDate = productDateArray[0];
+					ddl_prodHour.selectedIndex = 0;
+				}
+			}
+			
+			protected function getLayerDate_faultHandler(event:FaultEvent):void
+			{
+			}
+			// 地图zoom事件，动态改变图片的大小和偏移
+			private function ZOOM_STARTHandler(e:ZoomEvent):void
+			{
+				for each(var graphicsLayer:Layer in map.layers)
+				{
+					//根据缩放级别设置图层的图片源
+					if(graphicsLayer is GraphicsLayer && graphicsLayer.id.indexOf("Numerical")!=-1)
+					{
+						if(graphicsLayer==null) return;
+						
+						var symbol:PictureFillSymbol=(((graphicsLayer as GraphicsLayer).graphicProvider as ArrayCollection).getItemAt(0) as Graphic).symbol as PictureFillSymbol;
+						if((graphicsLayer.document as ArrayCollection).getItemAt(3) == "-L4")
+						{
+							if(map.level==0)
+							{
+								symbol.source = (symbol.source as String).replace("-L5","-L4");
+							}
+							else
+							{
+								symbol.source = (symbol.source as String).replace("-L4","-L5");
+							}
+						}
+						else
+						{
+							//symbol.source = symbol.source;
+						}
+						var extent:Extent = ((((graphicsLayer as GraphicsLayer).graphicProvider as ArrayCollection).getItemAt(0) as Graphic).geometry as Polygon).extent;
+						var resolution:Number = map.lods[map.level].resolution;
+						var width:Number = extent.width/resolution;
+						var height:Number = extent.height/resolution;
+						symbol.width = width;
+						symbol.height = height;
+						//初始状态为左下角
+						symbol.xoffset = Math.floor(width/2);//x偏移
+						symbol.yoffset = Math.ceil(height/2);//y偏移
+						
+						graphicsLayer.refresh();
+					}
+				}
+			}
+			protected function getNumPredLayer(prod:String):void
+			{
+				if(lb_prodDateWind.text == "暂无数据")
+				{
+					Alert.show("数据未入库，请等候","暂无数据", 4, null, null,errorLogo);
+					return;
+				}
+				removeExistLayers();
+				
+				var layerName:String = "";
+				var date:String = "";
+				
+				//气象数据日期后面还有小时
+				date = productDate;
+				var time:String = ddl_prodTime.selectedIndex.toString();
+				var level:String = ddl_prodLevel.selectedIndex.toString();
+				//三维产品
+				if(this.currentState == "state3D")
+				{
+					level = "0";
+				}
+				//Wind-QVAPOR-0-0-2013010708
+				//Wave-HS-0-0-20130107
+				layerName = "Wind-" + prod + "-" + 
+					time + "-" + level + "-" +date;
+				
+				getLayer(layerName);
+			}
+			//获取要加载的图层，主要是一些需要做特殊处理的图层
+			protected function getLayer(layerName:String):void
+			{
+				loadLayer(layerName);
+				if(layerName.indexOf("U10V10")||layerName.indexOf("UUVV"))
+				{
+					loadLayer(layerName.replace("U10V10","U10V10Contour").replace("UUVV","UUVVContour"));
+				}
+				loadLayer("Wind-land-0-black-land");
+			}
+			//加载图层
+			protected function loadLayer(layerName:String):void
+			{
+				//用Loader可以监听图层加载完毕事件，以设置图层加载的进度显示
+				var pictureLoader:Loader = new Loader();
+				pictureLoader.contentLoaderInfo.addEventListener(IOErrorEvent.IO_ERROR, function(event:Event):void{Alert.show("数据未入库","提示", 4, null, null,ProductBase.errorLogo);});
+				pictureLoader.contentLoaderInfo.addEventListener(Event.COMPLETE, function (event:Event):void{
+					//添加polygonlayer，设置PictureFillSymbol
+					var graphicsLayer:GraphicsLayer = new GraphicsLayer();
+					graphicsLayer.id="NumericalLayer_"+layerName;
+					graphicsLayer.name="Numerical Layer_"+layerName;
+					//设置图层信息,产品类型，产品层数类型标志
+					graphicsLayer.document = layerInfo;
+					//graphicsLayer.alpha = layerName.indexOf("Contour")==-1?1:0.5;
+					var graphic:Graphic = new Graphic();
+					var polygon:Polygon  = new Polygon();
+					polygon.spatialReference = map.spatialReference;
+					var ring:Array = new Array();
+					//坐标范围
+					ring.push(new MapPoint(3339585,3503550));
+					ring.push(new MapPoint(3339585,-2273031));
+					ring.push(new MapPoint(13914936,-2273031));
+					ring.push(new MapPoint(13914936,3503550));
+					ring.push(new MapPoint(3339585,3503550));
+					
+					polygon.addRing(ring);
+					graphic.geometry = polygon;
+					var fillSymbol:PictureFillSymbol = new PictureFillSymbol(event.currentTarget.url,251,251,1,1,0,0,0.001,null);//"Embed(source='assets/images/about.png')"
+					graphic.symbol = fillSymbol;
+					graphicsLayer.add(graphic);
+					graphicsLayer.addEventListener(LayerEvent.UPDATE_END,afterLayerLoaded);//添加图层加载完毕的事件监听
+					map.addLayer(graphicsLayer);
+					reorderMapLayer();//重新组织图层的顺序
+					var zoomEvent:ZoomEvent = new ZoomEvent(ZoomEvent.ZOOM_START);
+					map.dispatchEvent(zoomEvent);//获取该地图缩放级别的图层
+				});
+				//"http://localhost/img/20121217/Wind-Q2-0-2012112520.png"
+				//"http://localhost/img/20121217/Wind-PSFC-0-2012112508-L4.png"
+				var layerInfo:ArrayCollection = getLayerInfo(layerName);
+				var url:String = "http://" 
+					+ ProductsWidgetXml.serverIP + "/img_nio/Wind/"
+					+layerInfo.getItemAt(2)//date
+					+"/"+layerName+layerInfo.getItemAt(3)
+					+".png";
+				pictureLoader.load(new URLRequest(url));
+				AppEvent.dispatch(AppEvent.LOADING,true);
+			}
+			//获取图层的信息
+			//Wind-Q2-0-2013010708
+			//Wind-QVAPOR-0-0-2013010708
+			//Wind-SSWContour-0-0-2013010708
+			protected function getLayerInfo(layerName:String):ArrayCollection
+			{
+				var layerInfo:ArrayCollection = new ArrayCollection();
+				var array:Array = layerName.split('-');
+				layerInfo.addItem(array[1]);//0、Q2，色标拉伸中用到
+				layerInfo.addItem(array[0]);//1、Wind
+				layerInfo.addItem(array[array.length-1]);//2、2013010708
+				layerInfo.addItem(productLevelType(array[1]));//3、""或者"-L4"//-L4为多层数据，""为单层数据，在放大缩小时用到
+				var maxmin:Object = layerMaxMinDict[layerName];
+				layerInfo.addItem(maxmin==null?"":maxmin.Max);//4、最大值，色标拉伸中用到
+				layerInfo.addItem(maxmin==null?"":maxmin.Min);//5、最小值，色标拉伸中用到
+				return layerInfo;
+			}
+			
+			//获取图层类型，""或者"-L4"//-L4为多层数据，""为单层数据
+			protected function productLevelType(product:String):String
+			{
+				switch(product)
+				{
+					case "Q2":
+					case "T2":
+					case "RAINC":
+					case "RAINNC":
+					case "PSFC":
+					case "QVAPOR":
+					case "QCLOUD":
+					case "TT":
+					case "U10V10Contour":
+					case "UUVVContour":
+					case "RAINCRAINNC":
+					case "QVAPORQCLOUD":
+						return "";
+						break;
+					case "U10V10":
+					case "UUVV":
+					case "land":
+					case "TTContour":
+					case "T2Contour":
+					case "PSFCContour":
+						return "-L4";
+						break;
+					default:
+						return "";
+				}
+			}
+			//图层加载完毕的工作
+			private function afterLayerLoaded(evt:LayerEvent):void
+			{
+				if(evt.layer != null )
+				{
+					//隐藏关闭动画
+					AppEvent.dispatch(AppEvent.LOADING,false);
+					
+					var layer:GraphicsLayer = evt.layer as GraphicsLayer
+					
+					//fadeAdd.alphaTo = 0.5;
+					fadeAdd.target = layer;
+					fadeAdd.end();
+					fadeAdd.play();// 显示动画
+					
+					//删除事件监听
+					if(layer.hasEventListener(LayerEvent.UPDATE_END))
+					{
+						layer.removeEventListener(LayerEvent.UPDATE_END,afterLayerLoaded);
+					}
+					//缩放到图层
+					map.extent = (((layer.graphicProvider as ArrayCollection).getItemAt(0) as Graphic).geometry as Polygon).extent;	
+				}
+			}
+			
+			//移除所有数值预报图层，若一边找图层一边删除，会出现删不干净的bug，所以先将所有的待删除的图层放在列表中，一起删除
+			public function removeExistLayers():void
+			{
+				var layerList:Array = new Array();
+				for each(var layer:Layer in map.layers)
+				{
+					if((layer is GraphicsLayer && layer.id.indexOf("Numerical")!=-1))
+					{
+						layerList.push(layer);
+					}
+				}
+				for each(var layer:Layer in layerList)
+				{
+					map.removeLayer(layer);
+				}
+			}
+			
+			//重新组织图层的顺序
+			protected function reorderMapLayer():void
+			{
+				for each(var layer:Layer in map.layers)
+				{
+					if((layer is GraphicsLayer && layer.id.indexOf("-UUVV-")!=-1))
+					{
+						map.reorderLayer(layer.id,(map.layers as ArrayCollection).length-1);
+					}
+					if((layer is GraphicsLayer && layer.id.indexOf("-U10V10-")!=-1))
+					{
+						map.reorderLayer(layer.id,(map.layers as ArrayCollection).length-1);
+					}
+				}
+				for each(var layer:Layer in map.layers)
+				{
+					if((layer is GraphicsLayer && layer.id.indexOf("-land-")!=-1))
+					{
+						map.reorderLayer(layer.id,(map.layers as ArrayCollection).length-1);
+					}
+				}
+			}
+			
+			//根据08时和20时更改时间
+			protected function ddl_prodHour_changeHandler(event:IndexChangeEvent):void
+			{
+				var index:Number = event.newIndex;
+				productDate = productDateArray[index];
+				lb_prodDateWind.text = (productDate=='暂无数据'?productDate:(productDate.substr(4,2)+'月'+productDate.substr(6,2)+'日'));
+			}
+			
+			protected function accordion_changeHandler(event:IndexChangedEvent):void
+			{
+				switch(accordion.selectedIndex)
+				{
+					case 0:
+						//层数不可用
+						this.currentState = "state3D";
+						break;
+					case 1:
+						//层数可用
+						this.currentState = "state4D";
+						break;
+				}
+			}
+		]]>
+	</fx:Script>
+	<Products:states>
+		<s:State name="state3D" />
+		<s:State name="state4D" />
+	</Products:states>
+	<s:BorderContainer id="bc_param"
+					   top="45" width="230" left="10" 
+					   height.state3D="65"
+					   height.state4D="95"
+					   styleName="BorderContainer" >
+		<s:Label  x="10" y="10" text="气象起报时间:" />
+		<s:Label id="lb_prodDateWind" x="100" y="10" 
+				 text="{productDate=='暂无数据'?productDate:(productDate.substr(4,2)+'月'+productDate.substr(6,2)+'日')}" />
+		<s:DropDownList id="ddl_prodHour" x="159" y="5" width="68" 
+						dataProvider="{new ArrayCollection(['00时','12时'])}"
+						selectedIndex="0" change="ddl_prodHour_changeHandler(event)" />
+		<s:HGroup x="10" y="35" verticalAlign="middle">
+			<s:Label id="lb_prodTime" x="10" y="30" text="预报时次(h):" />
+			<s:DropDownList id="ddl_prodTime" width="90"
+							dataProvider="{new ArrayCollection(['0','1','2','3','4','5','6','7','8','9',
+							'10','11','12','13','14','15','16','17','18','19',
+							'20','21','22','23','24','25','26','27','28','29',
+							'30','31','32','33','34','35','36','37','38','39',
+							'40','41','42','43','44','45','46','47','48','49',
+							'50','51','52','53','54','55','56','57','58','59',
+							'60','61','62','63','64','65','66','67','68','69',
+							'70','71','72','73','74','75','76','77','78','79',
+							'80','81','82','83','84','85','86','87','88','89',
+							'90','91','92','93','94','95','96','97','98','99',
+							'100','101','102','103','104','105','106','107','108','109',
+							'110','111','112','113','114','115','116','117','118','119',
+							'120'])}"
+							selectedIndex="0"/>
+		</s:HGroup>
+		<s:HGroup x="10" y="65" verticalAlign="middle" visible.state3D="false">
+			<s:Label id="lb_prodLevel" text="高度层(hpa):"/>
+			<s:DropDownList id="ddl_prodLevel" width="90" 
+							selectedIndex="0"
+							dataProvider="{new ArrayCollection(['850','500','200'])}" />
+		</s:HGroup>
+	</s:BorderContainer>
+	<mx:Accordion id="accordion"
+				  styleName="AccordionClass"
+				  top.state3D="115" 
+				  top.state4D="145" 
+				  width="230" left="10" height="100%"
+				  openDuration="400" change="accordion_changeHandler(event)" >
+		<s:NavigatorContent label="气象表面场产品查询" styleName="NavigatorContentClass" >
+			<s:VGroup height="100%" width="100%">
+				<s:Spacer height="1" />
+				<mx:LinkButton label="2m比湿(kg/kg)" toolTip="点击加载2m比湿" click="getNumPredLayer('Q2')"/>
+				<mx:LinkButton label="2m温度(℃)" toolTip="点击加载2m温度" click="getNumPredLayer('T2Contour')"/>
+				<mx:LinkButton label="积云累积降水(mm)" toolTip="点击加载积云累积降水" click="getNumPredLayer('RAINC')"/>
+				<mx:LinkButton label="非积云累积降水(mm)" toolTip="点击加载非积云累积降水" click="getNumPredLayer('RAINNC')"/>
+				<mx:LinkButton label="降水(mm)" toolTip="点击加载降水" click="getNumPredLayer('RAINCRAINNC')"/>
+				<mx:LinkButton label="海平面气压(hPa)" toolTip="点击加载海平面气压" click="getNumPredLayer('PSFCContour')"/>
+				<mx:LinkButton label="10m风场" toolTip="点击加载10m风场" click="getNumPredLayer('U10V10')"/>
+				<s:Spacer height="1" />
+			</s:VGroup>
+		</s:NavigatorContent>
+		<s:NavigatorContent label="气象高度场产品查询" styleName="NavigatorContentClass" >
+			<s:VGroup height="100%" width="100%">
+				<s:Spacer height="1" />
+				<mx:LinkButton label="水汽混合比(10^-3kg/kg)" toolTip="点击加载水汽混合比" click="getNumPredLayer('QVAPOR')"/>
+				<mx:LinkButton label="云水混合比(10^-4kg/kg)" toolTip="点击加载云水混合比" click="getNumPredLayer('QCLOUD')"/>
+				<mx:LinkButton label="混合比(10^-3kg/kg)" toolTip="点击加载混合比" click="getNumPredLayer('QVAPORQCLOUD')"/>
+				<mx:LinkButton label="温度(℃)" toolTip="点击加载温度" click="getNumPredLayer('TTContour')"/>
+				<mx:LinkButton label="风场" toolTip="点击加载风场" click="getNumPredLayer('UUVV')"/>
+				<s:Spacer height="1" />
+			</s:VGroup>
+		</s:NavigatorContent>
+	</mx:Accordion>
+</Products:ProductBase>

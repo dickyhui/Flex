@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<!-- Generated 2012-12-25 21:13:37 by Hibernate Tools 3.4.0.CR1 -->
+<hibernate-mapping>
+    <class name="bean.TyphInfo" table="TYPH_INFO">
+        <id name="typhNum" type="long">
+            <column name="TYPH_NUM" precision="10" scale="0" />
+            <generator class="assigned" />
+        </id>
+        <property name="chName" type="string">
+            <column name="CH_NAME" length="20" />
+        </property>
+        <property name="enName" type="string">
+            <column name="EN_NAME" length="20" />
+        </property>
+        <property name="isongoing" type="java.lang.Boolean">
+            <column name="ISONGOING" precision="1" scale="0" />
+        </property>
+    </class>
+</hibernate-mapping>

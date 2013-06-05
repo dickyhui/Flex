@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:ItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009"
+				xmlns:s="library://ns.adobe.com/flex/spark"
+				xmlns:mx="library://ns.adobe.com/flex/mx"
+				autoDrawBackground="true"
+				width="150"
+				minHeight="35">
+	<fx:Metadata>
+        [Event(name="layerDetailsRemoved", type="flash.events.Event")]
+    </fx:Metadata>
+	<fx:Style>
+		.checkBoxStyle{
+			font-size:  13px;
+			color:  #A8F9B5;
+		}
+	</fx:Style>
+	<s:states>
+		<s:State name="normal" />
+		<s:State name="hovered" />
+		<s:State name="selected" />
+	</s:states>
+    <s:Rect left="2"
+            right="2"
+            top="2"
+            bottom="2">
+        <s:fill>
+            <s:SolidColor color="#F0FFFF"
+                          alpha="0" />
+        </s:fill>
+        <s:stroke>
+            <s:SolidColorStroke color="#ffffff"
+                                weight="1" />
+        </s:stroke>
+    </s:Rect>
+    <s:Group id="vGroup"
+             left="5"
+             right="5"
+             top="5"
+             bottom="5"
+             width="100%">
+		<s:layout>
+			<s:VerticalLayout gap="2"
+							  paddingBottom="2"
+							  paddingLeft="2"
+							  paddingRight="2"
+							  paddingTop="2" />
+		</s:layout>
+		<s:CheckBox left="0"
+					selected="{data.visible}"
+					label="{data.id}"
+					styleName="checkBoxStyle"
+					click="onCheckBoxClicked_handler(event)" />
+
+		<s:HSlider width="100%"
+				   value="{data.alpha}"
+				   minimum="0"
+				   maximum="1"
+				   snapInterval="0"
+				   change="onAlphaChanged(event)" />
+		<s:CheckBox selected="false"
+					toolTip="Show details" visible="false"
+					click="checkbox_clickHandler(event)"
+					skinClass="widgets.LayersManager.skins.CheckBoxTriangleSkin" />
+	</s:Group>
+
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.layers.Layer;
+			
+			import widgets.LayersManager.components.LayerInfoDetails;
+			import widgets.LayersManager.skins.CheckBoxTriangleSkin;
+			
+			protected var details:LayerInfoDetails;
+			
+			protected var readyToSize:Boolean = false;
+			
+			protected function onAlphaChanged(e:Event):void {
+				data.alpha = e.currentTarget.value;
+			}
+			
+			protected function onCheckBoxClicked_handler(e:MouseEvent):void {
+				data.visible = e.currentTarget.selected;
+			}
+			
+			override protected function updateDisplayList(unscaledWidth:Number, unscaledHeight:Number):void {
+				super.updateDisplayList(unscaledWidth, unscaledHeight);
+				if (readyToSize) {
+					var num:Number = this.numElements;
+					var h:Number = (vGroup.height - details.height - 8) + (num * 2);
+					details.dispose();
+					details = null;
+					readyToSize = false;
+				}
+			}
+			
+			protected function checkbox_clickHandler(event:MouseEvent):void {
+				if (details) {
+					vGroup.removeElement(details);
+					readyToSize = true;
+				}
+				else {
+					details = new LayerInfoDetails();
+					details.percentWidth = 100;
+					vGroup.addElement(details);
+					details.layer = data as Layer;
+				}
+			}
+		]]>
+	</fx:Script>
+</s:ItemRenderer>

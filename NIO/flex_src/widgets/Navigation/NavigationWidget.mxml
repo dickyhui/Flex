@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+///////////////////////////////////////////////////////////////////////////
+// Copyright (c) 2010-2011 Esri. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+///////////////////////////////////////////////////////////////////////////
+-->
+<viewer:BaseWidget xmlns:fx="http://ns.adobe.com/mxml/2009"
+                   xmlns:s="library://ns.adobe.com/flex/spark"
+                   xmlns:viewer="com.esri.viewer.*"
+                   xmlns:Navigation="widgets.Navigation.*"
+                   initialize="basewidget_initializeHandler(event)"
+                   widgetConfigLoaded="init()"
+				   preinitialize="basewidget1_preinitializeHandler(event)">
+    <fx:Declarations>
+        <s:Fade id="rollOverFade" target="{navigation}"/>
+        <s:Fade id="rollOutFade" target="{navigation}"/>
+    </fx:Declarations>
+    <fx:Script>
+        <![CDATA[
+			import com.esri.ags.events.ExtentEvent;
+			import com.esri.ags.events.ZoomEvent;
+			import com.esri.ags.geometry.Extent;
+			import com.esri.ags.layers.Layer;
+			import com.esri.viewer.AppEvent;
+			
+			import mx.events.FlexEvent;
+
+            private var buttonBarLastSelectedIndex:int;
+
+            protected function basewidget_initializeHandler(event:FlexEvent):void
+            {
+                AppEvent.addListener(AppEvent.DATA_PUBLISH, sharedDataUpdated);
+            }
+
+            private function sharedDataUpdated(event:AppEvent):void
+            {
+                var data:Object = event.data;
+
+                if (data.key == "Edit_Widget") // disable buttonbar when edit widget is opened
+                {
+                    if (data.collection[0])
+                    {
+                        map.cursorManager.removeAllCursors();
+                        buttonBarLastSelectedIndex = navigation.btnBar.selectedIndex;
+                        navigation.btnBar.selectedIndex = 0;
+                        navigation.btnBar.enabled = false;
+                    }
+                    else
+                    {
+                        navigation.btnBar.selectedIndex = buttonBarLastSelectedIndex;
+                        navigation.btnBar.enabled = true;
+                    }
+                }
+            }
+
+			//设置底图的可操作范围
+			private var xmin:Number;
+			private var xmax:Number;
+			private var ymin:Number;
+			private var ymax:Number;
+			private var centerX:Number;
+			private var centerY:Number;
+			private var level:Number;
+			private var visiblelevel:Number;
+            private function init():void
+            {
+                if (configXML)
+                {
+                    var rollOverAlpha:Number = configXML.rolloveralpha[0] ? parseFloat(configXML.rolloveralpha) : 1;
+                    var rollOutAlpha:Number = configXML.rolloutalpha[0] ? parseFloat(configXML.rolloutalpha) : 0.39;
+
+                    rollOutFade.alphaTo = rollOutAlpha;
+                    rollOverFade.alphaTo = rollOverAlpha;
+                    navigation.alpha = rollOutAlpha;
+                    navigation.visible = true;
+
+                    navigation.panwheelItem = new NavToolItem("PanWheel", "", configXML.panwheel.@visible == 'true');
+                    navigation.zoomFullextItem = new NavToolItem(configXML.panwheel.@fullextlabel || getDefaultString("fullExtentLabel"), configXML.panwheel.@fullexticon, true);
+                    navigation.pandownItem = new NavToolItem(configXML.panwheel.@pandownlabel || getDefaultString("panDownLabel"), "", true);
+                    navigation.panleftItem = new NavToolItem(configXML.panwheel.@panleftlabel || getDefaultString("panLeftLabel"), "", true);
+                    navigation.panrightItem = new NavToolItem(configXML.panwheel.@panrightlabel || getDefaultString("panRightLabel"), "", true);
+                    navigation.panupItem = new NavToolItem(configXML.panwheel.@panuplabel || getDefaultString("panUpLabel"), "", true);
+                    navigation.prevextItem = new NavToolItem(configXML.prevextbutton.@label || getDefaultString("previousExtentLabel"), "", configXML.prevextbutton.@visible == 'true');
+                    navigation.nextextItem = new NavToolItem(configXML.nextextbutton.@label || getDefaultString("nextExtentLabel"), "", configXML.nextextbutton.@visible == 'true');
+                    navigation.panItem = new NavToolItem(configXML.panbutton.@label || getDefaultString("panLabel"), configXML.panbutton.@icon, configXML.panbutton.@visible == 'true');
+                    navigation.zoominItem = new NavToolItem(configXML.zoominbutton.@label || getDefaultString("zoomInLabel"), configXML.zoominbutton.@icon, configXML.zoominbutton.@visible == 'true');
+                    navigation.zoomoutItem = new NavToolItem(configXML.zoomoutbutton.@label || getDefaultString("zoomOutLabel"), configXML.zoomoutbutton.@icon, configXML.zoomoutbutton.@visible == 'true');
+                    navigation.initButtonBar();
+					
+					//设置地图范围，用户只能在这个范围内操作
+					var extentEnabled:Boolean = configXML.extent.@enabled==true?true:false;//一定要==true，否则都是ture
+					if(extentEnabled)
+					{
+						xmin = Number(configXML.extent.@xmin) || Number.MIN_VALUE;
+						xmax = Number(configXML.extent.@xmax) || Number.MAX_VALUE;
+						ymin = Number(configXML.extent.@ymin) || Number.MIN_VALUE;
+						ymax = Number(configXML.extent.@ymax) || Number.MAX_VALUE;
+						map.addEventListener(ExtentEvent.EXTENT_CHANGE,extent_Change_Function);
+						
+					}
+                }
+            }
+			
+			protected function basewidget1_preinitializeHandler(event:FlexEvent):void
+			{
+				AppEvent.dispatch(AppEvent.WIDGETDOWNLOADCOMPLETE);
+			}
+			//记录每次改变extent的范围，若超出范围，通过改变extent的x或y的值，将其移回范围内
+			protected function extent_Change_Function(event:ExtentEvent):void
+			{
+				var extentXmin:Number = map.extent.xmin;
+				var extentXmax:Number = map.extent.xmax;
+				var extentYmin:Number = map.extent.ymin;
+				var extentYmax:Number = map.extent.ymax;
+				var out:Boolean = false;
+				
+				//解决double赋值不准确问题
+				var little:Number = 100;
+				
+				//如果当前范围的xmin和xmax都超出范围，或者ymin和ymax都超出范围，则底图的数据级数+1
+				//以解决当级数小于最小级数时，页面一直来回移动的问题
+				if((extentXmin<=xmin+little && extentXmax>=xmax-little)||(extentYmin<=ymin+little&&extentYmax>=ymax-little))
+				{
+					map.level++;
+					return;
+				}
+				
+				if(extentXmin<xmin)
+				{
+					extentXmax = extentXmax - extentXmin + xmin +little;
+					extentXmin = xmin +little;
+					out = true;
+				}
+				else if(extentXmax>xmax)
+				{
+					extentXmin = extentXmin - extentXmax + xmax -little;
+					extentXmax = xmax -little;
+					out = true;
+				}
+				if(extentYmin<ymin)
+				{
+					extentYmax = extentYmax - extentYmin + ymin +little;
+					extentYmin = ymin +little;
+					out = true;
+				}
+				else if(extentYmax>ymax)
+				{
+					extentYmin = extentYmin - extentYmax + ymax -little;
+					extentYmax = ymax -little;
+					out = true;
+				}
+				if(out == true)
+				{
+					var extent:Extent = new Extent(extentXmin,extentYmin,extentXmax,extentYmax);
+					map.extent = extent;
+				}
+			}
+		]]>
+    </fx:Script>
+    <Navigation:Navigation id="navigation"
+                           map="{map}"
+                           rollOut="{rollOutFade.play()}"
+                           rollOver="{rollOverFade.play()}"
+                           visible="false"/>
+</viewer:BaseWidget>

@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+///////////////////////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////////
+-->
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				xmlns:s="library://ns.adobe.com/flex/spark" 
+				xmlns:mx="library://ns.adobe.com/flex/mx" 
+				width="100%" height="100%"
+				creationComplete="creationCompleteHandler(event)">
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Graphic;
+			import com.esri.ags.Map;
+			import com.esri.ags.geometry.MapPoint;
+			import com.esri.ags.layers.GraphicsLayer;
+			import com.esri.ags.symbols.PictureMarkerSymbol;
+			import com.esri.ags.symbols.TextSymbol;
+			import com.esri.viewer.AppEvent;
+			
+			import mx.events.FlexEvent;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.http.HTTPService;
+			
+			private var lawEnforceLayer:GraphicsLayer = new GraphicsLayer();
+			private var map:Map;
+			protected function creationCompleteHandler(event:FlexEvent):void
+			{
+				if(!ProductsWidgetXml.productsWidgetXmlLoaded)
+				{
+					AppEvent.addListener(AppEvent.PRODUCTCONFIGLOADED,ProductConfigLoadedHandler);
+				}
+				else
+				{
+					ProductConfigLoadedHandler(null);
+				}
+			}
+			
+			protected function ProductConfigLoadedHandler(event:AppEvent):void
+			{
+				map = ProductsWidgetXml.map;
+				map.addLayer(lawEnforceLayer);
+				for each(var seaArea:XML in ProductsWidgetXml.seaAreaList.SeaArea)
+				{
+					//图片
+					var graphic:Graphic = new Graphic();
+					var pt:MapPoint = new MapPoint(seaArea.pt.@x,seaArea.pt.@y);
+					graphic.geometry = pt;
+					graphic.attributes = seaArea.@area;
+					//graphic.toolTip = "点击显示" + seaArea.@area + "天气";
+					var pointSymbol:PictureMarkerSymbol = new PictureMarkerSymbol("assets/images/flag_red.png",24,24);
+					graphic.symbol = pointSymbol;
+					lawEnforceLayer.add(graphic);
+					//文字
+					var graphicText:Graphic = new Graphic();
+					graphicText.geometry = pt;
+					var textformat:TextFormat = new TextFormat("Microsoft Yahei",14,null,false);
+					var textSymbol:TextSymbol = new TextSymbol(seaArea.@area,null,0xff3030,1,false,0,false,16777215,"middle",0,0,-20,textformat);
+					graphicText.symbol = textSymbol;
+					lawEnforceLayer.add(graphicText);
+				}
+				lawEnforceLayer.refresh();
+			}
+		]]>
+	</fx:Script>
+<!--	<s:BorderContainer top="5" width="230" left="10" height="35"
+					   styleName="BorderContainer" borderWeight="2" >
+		<s:Label x="10" y="10"  styleName="LabelTitle" text="主页" />
+	</s:BorderContainer>-->
+</s:Group>

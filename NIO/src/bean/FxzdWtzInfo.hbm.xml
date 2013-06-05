@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<!-- Generated 2013-5-18 17:43:34 by Hibernate Tools 3.4.0.CR1 -->
+<hibernate-mapping>
+    <class name="bean.FxzdWtzInfo" table="FXZD_WTZ_INFO">
+        <composite-id name="id" class="bean.FxzdWtzInfoId">
+            <key-property name="WNumber" type="int">
+                <column name="W_NUMBER" precision="5" scale="0" />
+            </key-property>
+            <key-property name="occurDate" type="date">
+                <column name="OCCUR_DATE" />
+            </key-property>
+        </composite-id>
+        <property name="longitude" type="big_decimal">
+            <column name="LONGITUDE" precision="10" scale="4" />
+        </property>
+        <property name="latitude" type="big_decimal">
+            <column name="LATITUDE" precision="10" scale="4" />
+        </property>
+        <property name="scope" type="string">
+            <column name="SCOPE" length="10" />
+        </property>
+        <property name="grad" type="string">
+            <column name="GRAD" length="10" />
+        </property>
+        <property name="radius" type="string">
+            <column name="RADIUS" length="10" />
+        </property>
+        <property name="year" type="java.lang.Short">
+            <column name="YEAR" precision="4" scale="0" />
+        </property>
+        <property name="month" type="java.lang.Byte">
+            <column name="MONTH" precision="2" scale="0" />
+        </property>
+        <property name="day" type="java.lang.Byte">
+            <column name="DAY" precision="2" scale="0" />
+        </property>
+    </class>
+</hibernate-mapping>

@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<!-- Generated 2012-12-17 16:07:53 by Hibernate Tools 3.4.0.CR1 -->
+<hibernate-mapping>
+    <class name="bean.BuoyLast" table="BUOY_LAST">
+        <composite-id name="id" class="bean.BuoyLastId">
+            <key-property name="name" type="string">
+                <column name="NAME" length="50" />
+            </key-property>
+            <key-property name="dateTime" >
+                <column name="DATE_TIME"  />
+            </key-property>
+        </composite-id>
+        <property name="tideHeig" type="big_decimal">
+            <column name="TIDE_HEIG" precision="10" />
+        </property>
+        <property name="waveHeig" type="big_decimal">
+            <column name="WAVE_HEIG" precision="10" />
+        </property>
+        <property name="waveDir" type="string">
+            <column name="WAVE_DIR" length="10" />
+        </property>
+        <property name="waveCycle" type="big_decimal">
+            <column name="WAVE_CYCLE" precision="10" />
+        </property>
+        <property name="windPower" type="big_decimal">
+            <column name="WIND_POWER" precision="10" />
+        </property>
+        <property name="windDir" type="string">
+            <column name="WIND_DIR" length="10" />
+        </property>
+        <property name="gust" type="big_decimal">
+            <column name="GUST" precision="10" />
+        </property>
+        <property name="seaTemp" type="big_decimal">
+            <column name="SEA_TEMP" precision="10" />
+        </property>
+        <property name="atTemp" type="big_decimal">
+            <column name="AT_TEMP" precision="10" />
+        </property>
+        <property name="atPress" type="big_decimal">
+            <column name="AT_PRESS" precision="10" />
+        </property>
+    </class>
+</hibernate-mapping>

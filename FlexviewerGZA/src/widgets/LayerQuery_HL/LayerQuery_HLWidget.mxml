@@ -1,0 +1,578 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewer:BaseWidget xmlns:fx="http://ns.adobe.com/mxml/2009"
+				   xmlns:s="library://ns.adobe.com/flex/spark"
+				   xmlns:mx="library://ns.adobe.com/flex/mx"
+				   xmlns:esri="http://www.esri.com/2008/ags"
+				   xmlns:viewer="com.esri.viewer.*"
+				   widgetConfigLoaded="init()"
+				   >
+	<viewer:states>
+		<s:State name="statsQuery"/>
+		<s:State name="stateOnLoading"/>
+	</viewer:states>
+	<fx:Declarations>
+		<s:Fade id="fadeRemove"  alphaFrom="1" alphaTo="0" duration="600" repeatCount="1" />
+		<s:Fade id="fadeAdd"  alphaFrom="0" alphaTo="1" duration="600" repeatCount="1" />
+		<mx:WebService id="ServerLayers" wsdl="{_wsURL}">
+			<mx:operation name="QueryHLLayer" fault="ServerLayers_QueryHLLayer_onFault(event)" result="ServerLayers_QueryHLLayer_onResult(event)" resultFormat="object"/>
+			<mx:operation name="QueryLatestDate" fault="ServerLayers_QueryLatestDate_onFault(event)" result="ServerLayers_QueryLatestDate_onResult(event)" resultFormat="object"/>
+		</mx:WebService>
+		<esri:QueryTask id="queryTask" fault="queryTask_onFault(event)" executeComplete="queryTask_executeComplete(event)" 
+						showBusyCursor="false"
+						useAMF="false"/>
+		<esri:Query id="query"
+					outSpatialReference="{map.spatialReference}"
+					returnGeometry="true" outFields="['VALUE']"
+				    where="VALUE > -100">
+		</esri:Query>
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Graphic;
+			import com.esri.ags.events.LayerEvent;
+			import com.esri.ags.events.QueryEvent;
+			import com.esri.ags.geometry.MapPoint;
+			import com.esri.ags.geometry.Polyline;
+			import com.esri.ags.layers.ArcGISDynamicMapServiceLayer;
+			import com.esri.ags.layers.DynamicMapServiceLayer;
+			import com.esri.ags.layers.FeatureLayer;
+			import com.esri.ags.layers.GraphicsLayer;
+			import com.esri.ags.layers.Layer;
+			import com.esri.ags.symbols.CompositeSymbol;
+			import com.esri.ags.symbols.SimpleLineSymbol;
+			import com.esri.ags.symbols.TextSymbol;
+			import com.esri.viewer.AppEvent;
+			import com.esri.viewer.TotalInfo;
+			import com.esri.viewer.ViewerContainer;
+			import com.esri.viewer.WidgetStates;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.EffectEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.utils.StringUtil;
+			
+			import spark.events.IndexChangeEvent;
+			
+			[Bindable]
+			private var _wsURL:String="";
+			private var _serverIP:String = "";
+			private var order:ArrayCollection;//预报时次
+			private var hisorder:ArrayCollection;//历史预报时次
+			private var hisHL:String = "";//历史预报数据路径
+			[Embed(source="assets/images/Error.png")]
+			private var errorLogo:Class;
+			[Bindable]
+			private var _latestDate:Date = new Date();
+			public const _dataUpdating:String = "数据正在更新";
+			private var _addLayerWhenOpen:Boolean = false;//打开widget加载图层（第一次除外）
+			private var HSLayerAdded:Boolean = false;
+			private var TMLayerAdded:Boolean = false;
+			private var DRLayerAdded:Boolean = false;
+			
+			private var _errorLayers:String;
+			
+			private function init():void
+			{
+				if(configXML)
+				{
+					_serverIP = configXML.ServerIP;
+					_wsURL = "http://" + _serverIP + "/GZA_WebService/GZA_WS_ServerLayers_For_Flex/Service.asmx?wsdl"
+					ServerLayers.loadWSDL(_wsURL);	
+					//预报时次
+					var arrayOrder:Array = new Array();
+					arrayOrder = String(configXML.Order.param).split(',');
+					var iO:int = 0;
+					while(arrayOrder[iO])
+					{
+						arrayOrder[iO] = StringUtil.trim(arrayOrder[iO]);
+						iO++;
+					}
+					order = new ArrayCollection(arrayOrder);
+					//历史预报时次
+					arrayOrder = new Array();
+					arrayOrder = String(configXML.HisOrder.param).split(',');
+					iO = 0;
+					while(arrayOrder[iO])
+					{
+						arrayOrder[iO] = StringUtil.trim(arrayOrder[iO]);
+						iO++;
+					}
+					hisorder = new ArrayCollection(arrayOrder);
+					hisHL = "http://" + _serverIP + String(configXML.HisHL);
+				}
+				//设置预报时次的数据绑定
+				prodOrder.dataProvider = order;
+				prodOrder.selectedIndex = 0;
+				
+				ServerLayers.QueryLatestDate("HSXIAO");//三个参数的时间都一样
+				//ViewerContainer.addEventListener(AppEvent.CloseWave,CloseWiget);
+			}
+			private function CloseWiget(event:AppEvent):void
+			{
+				var obj:Object = {label:"海浪数值预报", state:WidgetStates.WIDGET_CLOSED};
+				ViewerContainer.dispatchEvent(new AppEvent(AppEvent.CHANGE_WIDGET_STATE, obj));
+			}
+			private function showStateQuery():void
+			{
+				this.currentState = "statsQuery";
+			}
+			
+			private function showStateOnLoading():void
+			{
+				this.currentState="stateOnLoading"; 
+			}
+			
+			private function ServerLayers_QueryLatestDate_onResult(evt:ResultEvent):void
+			{
+				if(evt.result != "")
+				{
+					_latestDate = evt.result as Date;
+					if(_latestDate.fullYear == 1900)
+					{
+						lb_time.text= _dataUpdating;
+					}
+					else 
+					{
+						lb_time.text= _latestDate.fullYear + "-" + (_latestDate.month +1) + "-" + _latestDate.date;
+						button1_clickHandler(null);
+					}
+				}
+			}
+			
+			private function ServerLayers_QueryLatestDate_onFault(evt:FaultEvent):void
+			{
+				Alert.show("服务异常", "出错了！", 4, null, null,errorLogo);
+			}
+			
+			//设置时间显示的格式
+			private function myLabelFunction(item:Object):String
+			{
+				var result:String = (item as Date).fullYear + "/" + ((item as Date).month+1) + "/" + (item as Date).date;
+				return result;
+			}
+			
+			
+			//返回的结果：
+			//图层名;url;可见图层;数据类型;初始化可见;最大值（仅SXIAO有）;最小值（仅SXIAO有）
+			//WAVE_HSXIAO_20120419_00_R;http://202.121.180.148/arcgis/rest/services/ocean863/SDE.WAVE_HSXIAO_R_0/MapServer/;2;HSXIAO;1(visible);30.221;20.123
+			//?WAVE_TMXIAO_20120419_00_R;http://202.121.180.148/arcgis/rest/services/ocean863/SDE.WAVE_TMXIAO_R_0/MapServer/;1;TMXIAO;1
+			//?WAVE_DRXIAO_20120419_00_R;http://202.121.180.148/arcgis/rest/services/ocean863/SDE.WAVE_DRXIAO_R_0/MapServer/;2;DRXIAO;1
+			private function ServerLayers_QueryHLLayer_onResult(evt:ResultEvent):void
+			{
+				try
+				{
+					if (evt.result && evt.result != "")
+					{
+						var result:String = evt.result as String;
+						//检查没有获取到的图层
+						CheckErrorLayers(result);
+						var resultArr:Array = result.split('?') as Array;
+						for(var i:Number=0;i<resultArr.length;i++)
+						{
+							var str:String = resultArr[i];
+							var arr:Array = str.split(';') as Array;
+							switch(arr[3])
+							{
+								case "HSXIAO":
+									CreateHSDynamicLayer(arr);//创建HSXIAO图层
+									break;
+								case "TMXIAO":
+									CreateDynamicLayer(arr);//创建TMXIAO图层
+									break;
+								case "DRXIAO":
+									CreateDynamicLayer(arr);//创建DRXIAO图层
+									break;
+							}
+						}
+					}
+					else
+					{
+						Alert.show("数据异常", "出错了！", 4, null, null,errorLogo);
+						showStateQuery();
+					}
+				}
+				catch(error:Error)
+				{
+					Alert.show("数据异常", "出错了！", 4, null, null,errorLogo);
+					showStateQuery();
+				}
+			}
+			private function CreateHSDynamicLayer(arr:Array):void
+			{
+				var document:ArrayCollection = new ArrayCollection();
+				document.addItem(arr[3]);
+				document.addItem(arr[5]);//最大值
+				document.addItem(arr[6]);//最小值
+				var layer:ArcGISDynamicMapServiceLayer = new ArcGISDynamicMapServiceLayer();
+				layer.name = arr[0];
+				layer.id = arr[0];
+				layer.url = arr[1];
+				layer.visibleLayers = new ArrayCollection(new Array(arr[2]));
+				layer.document = document;
+				layer.visible = Number(arr[4]);
+				map.addLayer(layer);
+				
+				//在图层加载完毕响应事件，不过不要忘了删除事件监听
+				layer.addEventListener(LayerEvent.UPDATE_END,afterLayerLoaded);
+			}
+			private function CreateDynamicLayer(arr:Array):void
+			{
+				var document:ArrayCollection = new ArrayCollection();
+				document.addItem(arr[3]);
+				var layer:ArcGISDynamicMapServiceLayer = new ArcGISDynamicMapServiceLayer();
+				layer.name = arr[0];
+				layer.id = arr[0];
+				layer.url = arr[1];
+				layer.visibleLayers = new ArrayCollection(new Array(arr[2]));
+				layer.document = document;
+				layer.visible = Number(arr[4]);
+				map.addLayer(layer);
+				
+				//在图层加载完毕响应事件，不过不要忘了删除事件监听
+				layer.addEventListener(LayerEvent.UPDATE_END,afterLayerLoaded);
+			}
+			//查询TMXIAO图层，获取Graphic的value，以生成标注
+			//原先不用QueryTask，而是直接加载FeatureLayer，在FeatureLayer加载完毕（LayerEvent.UPDATE_END）之后获取它的Graphic
+			//但是往往由于图层没有完全加载完毕，导致获取不了全部的Graphic
+			//后才采用QueryTask方式
+			private function CreateContourLabel(url:String):void
+			{
+				queryTask.url = url;
+				queryTask.execute(query);
+			}
+			//查询完毕执行，生成标注层ContourLabel
+			protected function queryTask_executeComplete(event:QueryEvent):void
+			{
+				var graphicLayer:GraphicsLayer = new GraphicsLayer();
+				graphicLayer.id = "ContourLabel";
+				map.addLayer(graphicLayer);
+				for each (var gra:Graphic in queryTask.executeLastResult.features)
+				{
+					var i:int = int((gra.geometry as Polyline).paths[0].length/2);
+					var point:MapPoint = (gra.geometry as Polyline).paths[0][i];
+					var value:String = Number(gra.attributes["VALUE"]).toFixed(1).toString();
+					
+					var textformat:TextFormat = new TextFormat("Arial",15,null);
+					var symbol:TextSymbol = new TextSymbol(value, null,0x000000,false,0,false,16777215,"middle",0,0,0,textformat);
+					var graphic:Graphic = new Graphic(point,symbol,null);
+					graphicLayer.add(graphic);
+				}
+				graphicLayer.refresh();
+			}
+			
+			protected function queryTask_onFault(event:Object):void
+			{
+				//Alert.show("生成等值线标注出错", "出错了！", 4, null, null,errorLogo);
+			}
+			
+			private function ServerLayers_QueryHLLayer_onFault(evt:FaultEvent):void
+			{
+				Alert.show("数据异常", "出错了！", 4, null, null,errorLogo);
+				showStateQuery();
+			}
+			//检查没有获取到的图层
+			private function CheckErrorLayers(result:String):void
+			{
+				_errorLayers = "";
+				if(result.indexOf("WAVE_HSXIAO") == -1)
+				{
+					HSLayerAdded = true;
+					_errorLayers += "WAVE_HSXIAO\n";
+				}
+				if(result.indexOf("WAVE_TMXIAO") == -1)
+				{
+					TMLayerAdded = true;
+					_errorLayers += "WAVE_TMXIAO\n";
+				}
+				if(result.indexOf("WAVE_DRXIAO") == -1)
+				{
+					DRLayerAdded = true;
+					_errorLayers += "WAVE_DRXIAO\n";
+				}
+			}
+			private function afterLayerLoaded(evt:LayerEvent):void
+			{
+				if(evt.layer != null )
+				{
+					fadeAdd.target = evt.layer;
+					fadeAdd.end();
+					fadeAdd.addEventListener(EffectEvent.EFFECT_END, 
+						function():void
+						{
+							fadeAdd.end();
+						}
+					);
+					fadeAdd.play();// 显示动画
+					
+					var layer:ArcGISDynamicMapServiceLayer = evt.layer as ArcGISDynamicMapServiceLayer
+					//TMXIAO等值线生成标注
+					if(layer.id.indexOf("TMXIAO") != -1)
+					{
+						var url:String = layer.url + layer.visibleLayers[0];
+						CreateContourLabel(url);//显示label
+					}
+						
+					//删除事件监听
+					if(layer.hasEventListener(LayerEvent.UPDATE_END))
+					{
+						layer.removeEventListener(LayerEvent.UPDATE_END,afterLayerLoaded);
+					}
+					
+					trace("add layer success");
+					//判断三类图层都加载情况
+					layerLoadComplete((layer.document as ArrayCollection)[0]);
+					//当三类图层都已经加载时，才改变窗口
+					if(HSLayerAdded&&TMLayerAdded&&DRLayerAdded)
+					{
+						//缩放到图层
+						map.extent = layer.fullExtent;
+						//如果有无法加载的图层，弹出错误窗口
+						if(_errorLayers != "")
+						{
+							Alert.show("下列图层无法加载：\n"+_errorLayers,"提示",4,null,null,errorLogo);
+						}
+						showStateQuery();
+					}
+				}
+			}
+			
+			//查询加载数据
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				try
+				{
+					if(lb_time.text != _dataUpdating)
+					{
+						removeExistLayers();
+						HSLayerAdded = cb_HS.selected?false:true;
+						TMLayerAdded = cb_TM.selected?false:true;
+						DRLayerAdded = cb_DR.selected?false:true;
+						//预报时次
+						var order:Number = Number(prodOrder.selectedItem);
+						//可见图层
+						var visibles:String = (cb_HS.selected?1:0).toString() + "?" +(cb_TM.selected?1:0).toString() + "?" +(cb_DR.selected?1:0).toString();
+						ServerLayers.QueryHLLayer(order,visibles);
+						showStateOnLoading();
+					}
+					else
+					{
+						Alert.show("数据正在更新，请稍后","提示",4,null,null,errorLogo);
+					}
+					
+				}
+				catch(error:Error)
+				{
+					Alert.show("参数设置异常","出错了",4,null,null,errorLogo);
+					return;
+				}
+				
+			}
+			//判断三类图层都加载情况
+			private function layerLoadComplete(layerType:String):void
+			{
+				switch(layerType)
+				{
+					case "HSXIAO":
+						HSLayerAdded = true;
+						break;
+					case "TMXIAO":
+						TMLayerAdded = true;
+						break;
+					case "DRXIAO":
+						DRLayerAdded = true;
+						break;
+				}
+			}
+			//移除所有动态图层，若一边找图层一边删除，会出现删不干净的bug，所以先将所有的待删除的图层放在列表中，一起删除
+			private function removeExistLayers():void
+			{
+				var layerList:Array = new Array();
+				for each(var layer:Layer in map.layers)
+				{
+					if((layer is ArcGISDynamicMapServiceLayer)||(layer.id == "ContourLabel"))
+					{
+						layerList.push(layer);
+					}
+				}
+				if(layerList.length>0)
+				{
+					fadeRemove.targets = layerList;
+					fadeRemove.end();
+					fadeRemove.addEventListener(EffectEvent.EFFECT_END, 
+						function():void
+						{
+							fadeRemove.end();
+							for each(var layer:Layer in layerList)
+							{
+								map.removeLayer(layer);
+							}
+						}
+					);
+					fadeRemove.play();// 消失动画
+				}
+			}
+			private function wTemplate_closeHandler(event:Event):void
+			{
+			}
+			
+			private function wTemplate_openHandler(event:Event):void
+			{			
+				//CloseWidgetOther();
+				this.left = 20;
+				this.top = 130;
+				showStateQuery();
+				//如果当前的图层不是海浪的，加载之，解决海浪widget打开不加载的bug
+				if(_addLayerWhenOpen)
+				{
+					prodOrder_changeHandler(null);	
+				}
+				_addLayerWhenOpen = true;
+			}
+			
+			
+			private function CloseWidgetOther():void
+			{
+				ViewerContainer.dispatchEvent(new AppEvent(AppEvent.CloseWind));
+				ViewerContainer.dispatchEvent(new AppEvent(AppEvent.CloseCurrent));
+			} 
+			
+			protected function wTemplate_minimizedHandler(event:Event):void
+			{
+				this.x = 0;
+				this.y = TotalInfo.layerQuery_HL;
+				_addLayerWhenOpen = false;
+			}
+
+			protected function cb_HS_changeHandler(event:Event):void
+			{
+				for each(var layer:Layer in map.layers)
+				{
+					if((layer is ArcGISDynamicMapServiceLayer) && ((layer.document as ArrayCollection).getItemAt(0) == "HSXIAO"))
+					{
+						layer.visible = cb_HS.selected;
+					}
+				}
+			}
+
+
+			protected function cb_TM_changeHandler(event:Event):void
+			{
+				for each(var layer:Layer in map.layers)
+				{
+					if((layer is ArcGISDynamicMapServiceLayer) && ((layer.document as ArrayCollection).getItemAt(0) == "TMXIAO"))
+					{
+						layer.visible = cb_TM.selected;
+					}
+				}
+			}
+
+		    
+			protected function cb_DR_changeHandler(event:Event):void
+			{
+				for each(var layer:Layer in map.layers)
+				{
+					if((layer is ArcGISDynamicMapServiceLayer) && ((layer.document as ArrayCollection).getItemAt(0) == "DRXIAO"))
+					{
+						layer.visible = cb_DR.selected;
+					}
+				}
+			}
+			
+			protected function bt_TMLB_clickHandler(event:MouseEvent):void
+			{
+				for each(var layer:Layer in map.layers)
+				{
+					if(layer.id == "ContourLabel")
+					{
+						layer.visible = !layer.visible;
+					}
+				}
+			}
+			
+			var timer0:Timer = new Timer(500,1);
+			protected function prodOrder_changeHandler(event:IndexChangeEvent):void
+			{
+				if(!timer0.hasEventListener(TimerEvent.TIMER_COMPLETE))
+				{
+					timer0.addEventListener(TimerEvent.TIMER_COMPLETE,function():void {button1_clickHandler(null);timer0.stop();});
+				}
+				timer0.start();
+			}
+			
+			//气象历史查询的对话框
+			protected function bt_hisHL_clickHandler(event:MouseEvent):void
+			{
+				var hisHLTW:HisHLTitleWindow = HisHLTitleWindow(PopUpManager.createPopUp(this, HisHLTitleWindow, true));
+				hisHLTW.title = "海浪历史查询";
+				hisHLTW.x = this.stage.stageWidth/2 - hisHLTW.width/2;
+				hisHLTW.y = this.stage.stageHeight/2 - hisHLTW.height/2;
+				hisHLTW.hisorder = hisorder;
+				hisHLTW.hisHL = hisHL;
+				hisHLTW.addEventListener("close", closeHandler);
+			}
+			//对话框关闭按钮响应事件，移除事件监听和移除对话框
+			private function closeHandler(event:Event):void {
+				
+				event.target.removeEventListener("close", closeHandler);
+				PopUpManager.removePopUp(event.target as IFlexDisplayObject);
+			}
+		]]>
+	</fx:Script>
+	
+	<viewer:WidgetTemplate id="wTemplate"
+						   width="340" height="120"
+						   enableResizeButton="false"
+						   closed="wTemplate_closeHandler(event)" 
+						   open="wTemplate_openHandler(event)" 
+						   minimized="wTemplate_minimizedHandler(event)">
+		<s:Group id="queryGroup" width="100%" height="100%" visible="false" visible.statsQuery="true">
+			<s:VGroup width="100%" height="100%" verticalAlign="middle" horizontalAlign="center" >
+				<mx:Spacer height="4" />
+				<s:Group>
+					<s:Rect right="-2" left="-2" top="-2" bottom="-2">
+						<s:stroke>
+							<s:SolidColorStroke color="#D6F6D0" weight="1"/>
+						</s:stroke>
+					</s:Rect>
+					<s:HGroup>
+						<s:CheckBox id="cb_HS" selected="true" label="有效波高" color="#A8F9B5" fontSize="13"  alpha="0.9" change="cb_HS_changeHandler(event)"/>
+						<mx:Spacer width="5" />
+						<s:CheckBox id="cb_TM" selected="true" label="周期" color="#A8F9B5" fontSize="13"  alpha="0.9"  change="cb_TM_changeHandler(event)" />
+						<s:Button id="bt_TMLB" label="标注切换" color="#A8F9B5" fontSize="13"  alpha="0.9" click="bt_TMLB_clickHandler(event)" />
+						<mx:Spacer width="5" />
+						<s:CheckBox id="cb_DR" selected="true" label="波向" color="#A8F9B5" fontSize="13"  alpha="0.9" change="cb_DR_changeHandler(event)"/>
+					</s:HGroup>
+				</s:Group>
+				<mx:Spacer height="100%" />
+				<s:HGroup>
+					<s:Label id="lb_time"  color="#A8F9B5" fontSize="13" alpha="0.9" textAlign="center" />
+					<mx:Spacer width="100%" />
+					<s:Label text="预报时次" color="#A8F9B5" fontSize="13"  alpha="0.9" textAlign="center" />
+					<s:DropDownList id="prodOrder" width="55" fontSize="13" change="prodOrder_changeHandler(event)"/>
+					<s:Button label="加 载" visible="false" width="0" color="#50F96C" fontSize="13"  alpha="0.9" click="button1_clickHandler(event)" />
+					<s:Button id="bt_hisHL" label="历史查询" color="#A8F9B5" fontSize="13"  alpha="0.9" click="bt_hisHL_clickHandler(event)" />
+				</s:HGroup>
+			</s:VGroup>
+		</s:Group>
+		<s:Group id="loading" width="100%" height="100%" visible="false" visible.stateOnLoading="true">
+			<s:layout>
+				<s:VerticalLayout gap="0" horizontalAlign="center" verticalAlign="middle"/>
+			</s:layout>
+			
+			<s:VGroup id="boxMessage"
+					  width="100%" height="100%" 
+					  includeInLayout="true"
+					  horizontalAlign="center" verticalAlign="middle">
+				<mx:Image id="swfMessage"
+						  source="assets/images/loader.swf"/>
+				<s:Label id="txtMessage"
+						 text="图层正在传输，请稍后..." color="#A8F9B5" fontSize="13"  alpha="0.9" />
+			</s:VGroup>
+		</s:Group>
+	</viewer:WidgetTemplate>
+</viewer:BaseWidget>

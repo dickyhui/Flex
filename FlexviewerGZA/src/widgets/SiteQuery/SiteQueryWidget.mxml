@@ -1,0 +1,904 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+////////////////////////////////////////////////////////////////////////////////
+//
+// Copyright (c) 2012 GIS KEY LAB ZJU
+//
+// BUOY BCY WS NTDHLJ等时间序列统计显示窗口
+//
+////////////////////////////////////////////////////////////////////////////////
+-->
+<viewer:BaseWidget xmlns:fx="http://ns.adobe.com/mxml/2009"
+				   xmlns:s="library://ns.adobe.com/flex/spark"
+				   xmlns:mx="library://ns.adobe.com/flex/mx"
+				   xmlns:esri="http://www.esri.com/2008/ags"
+				   xmlns:viewer="com.esri.viewer.*" 
+				   widgetConfigLoaded="init()" isResizeable="false" xmlns:CommonUtil="widgets.CommonUtil.*">
+	<fx:Style>
+		@namespace s "library://ns.adobe.com/flex/spark";
+		@namespace mx "library://ns.adobe.com/flex/mx";
+		@namespace esri "http://www.esri.com/2008/ags";
+		@namespace viewer "com.esri.viewer.*";
+		
+		.lb{			
+			color:#a2a2a2;
+		}
+	</fx:Style>
+	<viewer:states>
+		<s:State name="statezoomin" />
+		<s:State name="statezoomout" />
+	</viewer:states>
+	<viewer:transitions>
+		<s:Transition  toState="statezoomin">
+			<s:Resize target="{wTemplate}" widthTo="850" heightTo="400" duration="300"/>
+		</s:Transition>	
+		<s:Transition  toState="statezoomout">
+			<s:Resize target="{wTemplate}" widthTo="1200" heightTo="600" duration="300"/>
+		</s:Transition>	
+	</viewer:transitions>
+	<fx:Declarations>
+		<mx:WebService id="SiteQuery" wsdl="{_wsURL}">
+			<mx:operation name="GetSiteStatisticValues" fault="SiteQuery_GetSiteStatisticValues_onFault(event)" result="SiteQuery_GetSiteStatisticValues_onResult(event)" resultFormat="object"/>	
+			<mx:operation name="GetSiteStatisticValuesVector" fault="SiteQuery_GetSiteStatisticValuesVector_onFault(event)" result="SiteQuery_GetSiteStatisticValuesVector_onResult(event)" resultFormat="object"/>	
+		</mx:WebService>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Graphic;
+			import com.esri.ags.geometry.MapPoint;
+			import com.esri.ags.geometry.Polyline;
+			import com.esri.ags.layers.GraphicsLayer;
+			import com.esri.ags.utils.DateUtil;
+			import com.esri.ags.webmap.PopUpRenderer;
+			import com.esri.ags.webmap.supportClasses.PopUpInfo;
+			import com.esri.viewer.AppEvent;
+			import com.esri.viewer.TotalInfo;
+			import com.esri.viewer.ViewerContainer;
+			import com.esri.viewer.WidgetStates;
+			
+			import mx.charts.HitData;
+			import mx.charts.chartClasses.IChartElement2;
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.FlexGlobals;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			import mx.printing.FlexPrintJob;
+			import mx.printing.FlexPrintJobScaleType;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.utils.StringUtil;
+			
+			import spark.components.supportClasses.ItemRenderer;
+			import spark.events.IndexChangeEvent;
+			[Bindable]
+			private var _wsURL:String="";
+			private var _serverIP:String = "";
+			[Bindable]
+			private var _configXML:XML;
+			[Bindable]
+			private var siteCHName:String = "";
+			[Bindable]
+			private var minValue:Number = Number.POSITIVE_INFINITY;
+			[Bindable]
+			private var maxValue:Number = Number.NEGATIVE_INFINITY;
+			[Bindable]
+			private var s_uint:String = "";
+			[Bindable]
+			private var calParam:String = "";
+			[Bindable]
+			private var today:Date = new Date();;
+			[Embed(source="assets/images/Error.png")]
+			private var errorLogo:Class;
+			private var job:FlexPrintJob;
+			private var siteName:String = "";
+			private var fromTime:Date = new Date();
+			private var toTime:Date = new Date();
+			private var timer:Timer = new Timer(300000);//计时器，每几分钟刷新参数
+			private var minimize:Boolean = false;//最小化后再打开不重新计算时间序列
+			private var speeddirect:String = SpeedDirect.Speed;//Speed是只有速度，Direct是只有方向，SpeedandDirect是既有速度又有方向
+			private var vectorType:String = VectorType.WaveLiu;//WaveLiu是海流，Wind是风，WaveBo是波
+			private var alertValues:Array = new Array(Number.NaN,Number.NaN,Number.NaN);//3个警戒线值，从大到小
+			private var g_data:ArrayCollection = new ArrayCollection();
+			private var items:ArrayCollection;//英文
+			private var itemsC:ArrayCollection;//中文
+			private var itemsU:ArrayCollection;//单位
+			private function init():void
+			{
+				items = new ArrayCollection();
+				itemsC = new ArrayCollection();
+				itemsU = new ArrayCollection();
+				if(configXML)
+				{
+					_serverIP = configXML.ServerIP;
+					_wsURL = "http://" + _serverIP + "/GZA_WebService/GZA_WS_Site_For_Flex/Service.asmx?wsdl"
+					SiteQuery.loadWSDL(_wsURL);	
+					//英文参数
+					var array:Array = new Array();
+					array = String(configXML.itemE.param).split(',');
+					var i:int = 0;
+					while(array[i])
+					{
+						array[i] = StringUtil.trim(array[i]);
+						i++;
+					}
+					items = new ArrayCollection(array);
+					//中文参数
+					var arrayC:Array = new Array();
+					arrayC = String(configXML.itemC.param).split(',');
+					var iC:int = 0;
+					while(arrayC[iC])
+					{
+						arrayC[iC] = StringUtil.trim(arrayC[iC]);
+						iC++;
+					}
+					itemsC = new ArrayCollection(arrayC);
+					//参数单位
+					var arrayU:Array = new Array();
+					arrayU = String(configXML.itemU.param).split(',');
+					var iU:int = 0;
+					while(arrayU[iU])
+					{
+						arrayU[iU] = StringUtil.trim(arrayU[iU]);
+						iU++;
+					}
+					itemsU = new ArrayCollection(arrayU);
+				}
+				
+				combo_type.dataProvider = itemsC;
+				//combo_type.selectedIndex=1;//这条语句主要为了解决更改dataProvider时combo_type的selectedIndex不会变的bug
+				combo_type.selectedIndex=0;
+				
+				//窗口一出来就显示当天的时间序列
+				conculate();
+				
+				wTemplate.addTitlebarButton("widgets/SiteQuery/assets/images/缩小.png","缩小",showZoomInState);
+				wTemplate.addTitlebarButton("widgets/SiteQuery/assets/images/放大.png","放大",showZoomOutState);
+				wTemplate.selectedTitlebarButtonIndex=0;
+				timer.addEventListener(TimerEvent.TIMER,refreshParam);
+			}
+			private function refreshParam(evt:TimerEvent):void
+			{
+				conculate();
+			}
+			private function showZoomOutState():void
+			{
+				currentState = "statezoomout";
+				wTemplate.selectedTitlebarButtonIndex=1;
+			}
+			
+			private function showZoomInState():void
+			{
+				currentState = "statezoomin";
+				wTemplate.selectedTitlebarButtonIndex=0;
+			}
+			
+			private function SiteQuery_GetSiteStatisticValues_onFault(evt:FaultEvent):void
+			{
+				lineChartStatistics.dataProvider = null;
+				Alert.show("缺失当前的数据", "数据缺失！", 4, null, null,errorLogo);
+				return;
+			}
+			
+			private function SiteQuery_GetSiteStatisticValues_onResult(evt:ResultEvent):void
+			{
+				try
+				{
+					if (evt.result)
+					{
+						var result:String = evt.result as String;
+						var arr:Array = result.split('?') as Array;
+						if(arr.length <= 1)
+						{
+							lineChartStatistics.dataProvider = null;
+							Alert.show("缺失当前的数据", "数据缺失！",4,null,null,errorLogo);
+							return;
+						}
+						maxValue = Number.NEGATIVE_INFINITY;
+						minValue = Number.POSITIVE_INFINITY;
+						g_data.removeAll();
+						setAlertValues();//设置时间序列的警戒线
+						for(var i:int=0;i<arr.length;i++)
+						{
+							var arrChild:Array = arr[i].toString().split('!');
+							
+							var value:Number = Number.NaN;
+							value = Number(Number(arrChild[1]).toFixed(2));//保留两位小数
+							if(Number(arrChild[1]) == 9999 || Number(arrChild[1]) == 99999)//9999和99999标识空值
+							{
+								g_data.addItem({time:String(arrChild[0]),value:Number.NaN,speed:0,direct:0,value1:alertValues[0],value2:alertValues[1],value3:alertValues[2]});
+								continue;
+							}
+							if((calParam.indexOf("流速") != -1)&&((siteName=="NTDHLJ")||(siteName.indexOf("BUOY") != -1)))
+							{
+								value=Number(Number(value*0.01).toFixed(2));
+							}
+							g_data.addItem({time:String(arrChild[0]),value:value,speed:0,direct:0,value1:alertValues[0],value2:alertValues[1],value3:alertValues[2]});
+							setMaxMinValue(value);//设置时间序列的最大值和最小值
+						}
+						lineChartStatistics.dataProvider = g_data;
+					}
+					else
+					{
+						lineChartStatistics.dataProvider = null;
+						Alert.show("缺失当前的数据", "数据缺失！", 4, null, null,errorLogo);
+					}
+				}
+				catch(error:Error)
+				{
+					lineChartStatistics.dataProvider = null;
+					Alert.show("缺失当前的数据", "数据缺失！", 4, null, null,errorLogo);
+				}
+			}
+			private function SiteQuery_GetSiteStatisticValuesVector_onFault(evt:FaultEvent):void
+			{
+				lineChartStatistics.dataProvider = null;
+				Alert.show("缺失当前的数据", "数据缺失！", 4, null, null,errorLogo);
+				return;
+			}
+			
+			private function SiteQuery_GetSiteStatisticValuesVector_onResult(evt:ResultEvent):void
+			{
+				try
+				{
+					if (evt.result)
+					{
+						var result:String = evt.result as String;
+						var arr:Array = result.split('?') as Array;
+						if(arr.length <= 1)
+						{
+							lineChartStatistics.dataProvider = null;
+							Alert.show("缺失当前的数据", "数据缺失！",4,null,null,errorLogo);
+							return;
+						}
+						g_data.removeAll();
+						maxValue = Number.NEGATIVE_INFINITY;
+						minValue = Number.POSITIVE_INFINITY;
+						setAlertValues();//设置时间序列的警戒线
+						for(var i:int=0;i<arr.length;i++)
+						{
+							var arrChild:Array = arr[i].toString().split('!');
+							var speedvalue:Number = Number(Number(arrChild[1]).toFixed(2));//保留两位小数
+							var directvalue:Number = Number(Number(arrChild[2]).toFixed(1));//保留两位小数
+							
+							if(Number(speedvalue) == 9999 || Number(speedvalue) == 99999||Number(directvalue) == 9999 || Number(directvalue) == 99999)//9999和99999标识空值
+							{
+								g_data.addItem({time:String(arrChild[0]),value:Number.NaN,speed:0,direct:0,value1:alertValues[0],value2:alertValues[1],value3:alertValues[2]});
+								continue;
+							}
+							if((calParam.indexOf("流速") != -1)&&((siteName=="NTDHLJ")||(siteName.indexOf("BUOY") != -1)))
+							{
+								speedvalue=Number(Number(speedvalue*0.01).toFixed(2));
+							}
+							g_data.addItem({time:String(arrChild[0]),value:speedvalue,speed:speedvalue,direct:directvalue,value1:alertValues[0],value2:alertValues[1],value3:alertValues[2]});
+							setMaxMinValue(speedvalue);//设置时间序列的最大值和最小值
+						}
+						lineChartStatistics.dataProvider = g_data;
+					}
+					else
+					{
+						lineChartStatistics.dataProvider = null;
+						Alert.show("缺失当前的预报数据", "数据缺失！", 4, null, null,errorLogo);
+					}
+				}
+				catch(error:Error)
+				{
+					lineChartStatistics.dataProvider = null;
+					Alert.show("缺失当前的预报数据", "数据缺失！", 4, null, null,errorLogo);
+				}
+			}
+			//设置时间序列的警戒线
+			private function setAlertValues():void
+			{
+				alertValues[0] = Number.NaN;
+				alertValues[1] = Number.NaN;
+				alertValues[2] = Number.NaN;
+				if((calParam.indexOf("风速") != -1)&&(siteName == "WEATHER_STATION"))
+				{
+					alertValues[0] = 7.9;
+					alertValues[1] = 5.5;
+				}
+				else if((calParam.indexOf("波高") != -1)&&((siteName.indexOf("BUOY")!=-1)||(siteName=="BCY")))
+				{
+					alertValues[0] = 0.9
+				}
+				else if(calParam.indexOf("流速") != -1)
+				{
+					alertValues[0] = 1.1;
+					alertValues[1] = 0.8;
+					alertValues[2] = 0.6;
+				}
+			}
+			//设置时间序列的最大值和最小值
+			private function setMaxMinValue(speedvalue:Number):void
+			{
+				if(speeddirect == SpeedDirect.Direct)//只有方向
+				{
+					maxValue = 1;
+					minValue = 1;
+				}
+				else//既有方向，也有大小
+				{
+					if(calParam.indexOf("风速风向") != -1)
+					{
+						minValue = 0;//风速风向要从0开始，加上风向标，最小值设为-1
+					}
+					if(Number(speedvalue)>maxValue)
+					{
+						maxValue = Number(speedvalue);//获取最大值
+					}
+					if(Number(speedvalue)-0.1<minValue)
+					{
+						minValue = Number(speedvalue)-0.1;//获取最小值
+					}
+					if(alertValues[0]>maxValue)//最大值如果是value1，只会显示线的一半宽度
+					{
+						maxValue = alertValues[0]*1.05;//获取最大值
+					}
+				}
+			}
+			protected function lineChartStatistics_updateCompleteHandler(event:FlexEvent):void
+			{
+				if(!cb_vectorVisibility.selected)
+				{
+					return;
+				}
+				var graphics:Graphics = event.currentTarget.graphics;
+				graphics.clear();
+				graphics.lineStyle(2,0x0000ff);
+				var constParam:Number = Math.PI/180;
+				if(speeddirect == SpeedDirect.Direct||speeddirect == SpeedDirect.SpeedandDirect)//矢量
+				{
+					if(vectorType==VectorType.WaveBo||vectorType==VectorType.WaveLiu)//海流和波
+					{
+						var item:Object;
+						var mainLengthX:Number;//主线长度在x轴上的分量
+						var mainLengthY:Number;//主线长度在y轴上的分量
+						for each(var items:Object in event.currentTarget.items)
+						{
+							item = items.item;
+							if(item.speed == 0)
+							{
+								continue;
+							}
+							mainLengthX = 20*Math.sin(item.direct* constParam);
+							mainLengthY = 20*Math.cos(item.direct* constParam);
+							
+							//主线
+							graphics.moveTo(items.x,items.y);
+							graphics.lineTo(items.x+mainLengthX,items.y-mainLengthY);
+							//左箭头辅线
+							graphics.lineTo(items.x+mainLengthX-10*Math.cos((120-item.direct)* constParam),items.y-mainLengthY+10*Math.sin((120-item.direct)* constParam));
+							//右箭头辅线
+							graphics.moveTo(items.x+mainLengthX,items.y-mainLengthY);
+							graphics.lineTo(items.x+mainLengthX-10*Math.cos((60-item.direct)* constParam),items.y-mainLengthY+10*Math.sin((60-item.direct)* constParam));
+						}
+					}
+					else if(vectorType==VectorType.Wind)//风速风向
+					{
+						var itemY:Number = IChartElement2(lineSeries1).dataToLocal(0,minValue).y - 30;
+						var item1:Object;
+						var lengthX:Number;//单位长度在x轴上的分量
+						var lengthY:Number;//单位长度在y轴上的分量
+						for each(var items1:Object in event.currentTarget.items)
+						{
+							item1 = items1.item;
+							if(item1.speed == 0)
+							{
+								continue;
+							}
+							lengthX = Math.sin(item1.direct* constParam);
+							lengthY = Math.cos(item1.direct* constParam);
+							
+							//主线长20，辅线场8，隔4
+							graphics.moveTo(items1.x,itemY);
+							graphics.lineTo(items1.x+20*lengthX,itemY-20*lengthY);
+							if(item1.speed<3)
+							{
+								graphics.moveTo(items1.x+16*lengthX,itemY-16*lengthY);
+								graphics.lineTo(items1.x+16*lengthX +4*lengthY,itemY-16*lengthY+4*lengthX);
+							}
+							else if(item1.speed>=17)
+							{
+								graphics.moveTo(items1.x+20*lengthX,itemY-20*lengthY);
+								graphics.lineTo(items1.x+20*lengthX +4*lengthY,itemY-20*lengthY+4*lengthX);
+								graphics.lineTo(items1.x+16*lengthX,itemY-16*lengthY);
+							}
+							else 
+							{
+								if(item1.speed>=3)
+								{
+									graphics.moveTo(items1.x+20*lengthX,itemY-20*lengthY);
+									graphics.lineTo(items1.x+20*lengthX +8*lengthY,itemY-20*lengthY+8*lengthX);
+								}
+								if(item1.speed>=7)
+								{
+									graphics.moveTo(items1.x+16*lengthX,itemY-16*lengthY);
+									graphics.lineTo(items1.x+16*lengthX +8*lengthY,itemY-16*lengthY+8*lengthX);
+								}
+								else if(item1.speed>=5)
+								{
+									graphics.moveTo(items1.x+16*lengthX,itemY-16*lengthY);
+									graphics.lineTo(items1.x+16*lengthX +4*lengthY,itemY-16*lengthY+4*lengthX);
+								}
+								if(item1.speed>=11)
+								{
+									graphics.moveTo(items1.x+12*lengthX,itemY-12*lengthY);
+									graphics.lineTo(items1.x+12*lengthX +8*lengthY,itemY-12*lengthY+8*lengthX);
+								}
+								else if(item1.speed>=9)
+								{
+									graphics.moveTo(items1.x+12*lengthX,itemY-12*lengthY);
+									graphics.lineTo(items1.x+12*lengthX +4*lengthY,itemY-12*lengthY+4*lengthX);
+								}
+								if(item1.speed>=15)
+								{
+									graphics.moveTo(items1.x+8*lengthX,itemY-8*lengthY);
+									graphics.lineTo(items1.x+8*lengthX +8*lengthY,itemY-8*lengthY+8*lengthX);
+								}
+								else if(item1.speed>=13)
+								{
+									graphics.moveTo(items1.x+8*lengthX,itemY-8*lengthY);
+									graphics.lineTo(items1.x+8*lengthX +4*lengthY,itemY-8*lengthY+4*lengthX);
+								}
+							}
+						}
+					}
+				}
+			}
+			private function wTemplate_closeHandler(event:Event):void
+			{
+				timer.stop();
+			}
+			private var time:Timer = new Timer(1000,1);
+			private function wTemplate_openHandler(event:Event):void
+			{
+				if(this.sendData)
+				{
+					siteName = this.sendData.name;
+					today = new Date();
+					switch(siteName)
+					{
+						case "BUOY1":
+							siteCHName = "1号浮标";
+							break;
+						case "BUOY2":
+							siteCHName = "2号浮标";
+							break;
+						case "BUOY4":
+							siteCHName = "4号浮标";
+							break;
+						case "BCY":
+							siteCHName = "波潮仪";
+							siteName = siteName+"QT";
+							break;
+						case "NTDHLJ":
+							siteCHName = "牛头岛海流计";
+							break;
+						case "WEATHER_STATION":
+							siteCHName = "1号气象站";
+							break;
+						case "WEATHER_STATION2":
+							siteCHName = "2号气象站";
+							break;
+					}
+					this.wTemplate.widgetTitle = siteCHName + "—时间序列统计图";
+					
+					if(itemsC != null)
+					{
+						combo_type.dataProvider = itemsC;
+						combo_type.selectedIndex=1;//这条语句主要为了解决更改dataProvider时combo_type的selectedIndex不会变的bug
+						combo_type.selectedIndex=0;
+						
+						//窗口一出来就显示当天的时间序列
+						if(!minimize)
+						{
+							time_checkbox.selected = true;
+							time_checkbox_changeHandler(null);
+							conculate();
+						}
+						minimize = false;
+					}
+				}
+				
+				showZoomInState();
+				this.left = 20;
+				this.top = 130;
+			}
+			
+			private function conculate():void
+			{
+				if(time_checkbox.selected == true)
+				{
+					fromTime = new Date(today.fullYear,today.month,today.date,today.hours-12,today.minutes,today.seconds);
+					toTime = new Date(today.fullYear,today.month,today.date,today.hours,today.minutes,today.seconds);
+				}
+				else
+				{
+					var ftArr:Array = startDate.text.split("/");
+					fromTime = new Date(ftArr[0], ftArr[1]-1, ftArr[2]);
+					fromTime.hours = startTime.hours;
+					fromTime.minutes = startTime.minutes;
+					fromTime.seconds = startTime.seconds;
+					var toArr:Array = endDate.text.split("/");
+					toTime = new Date(toArr[0], toArr[1]-1, toArr[2]);
+					toTime.hours = endTime.hours;
+					toTime.minutes = endTime.minutes;
+					toTime.seconds = endTime.seconds;
+				}
+				
+				if (fromTime.time > toTime.time)
+				{
+					Alert.show("填入查询时间异常，请重试...", "出错了！", 4, null, null,errorLogo);
+					return;
+				}
+				
+				calParam = combo_type.selectedItem;//获取参数
+				s_uint = GetUnit(calParam);//获取单位
+				var calParamE:String = GetCHParam(calParam);//参数在数据库中的名字
+				if(calParamE == "error")
+				{
+					Alert.show("填入查询参数异常，请重试...", "出错了！", 4, null, null,errorLogo);
+					return;
+				}
+				if(calParamE.indexOf("&") != -1)//速度方向
+				{
+					cb_vectorVisibility.visible = true;
+					if(siteName=="WEATHER_STATION")//气象预报站的风速风向查询
+					{
+						SetLineSeriesStyle(s1);
+						vectorType = VectorType.Wind;
+						speeddirect = SpeedDirect.SpeedandDirect;
+						cb_vectorVisibility.label = "风向";
+					}
+					else if(siteName=="NTDHLJ")//牛头岛海流计的2-15米流速流向查询
+					{
+						SetLineSeriesStyle(s1);
+						vectorType = VectorType.WaveLiu;
+						speeddirect = SpeedDirect.SpeedandDirect;
+						cb_vectorVisibility.label = "流向";
+					}
+					else if(siteName.indexOf("BUOY") != -1)//牛头岛海流计的2-15米流速流向查询
+					{
+						if(calParamE == "&BX")
+						{
+							SetLineSeriesStyle(s2);
+							vectorType = VectorType.WaveBo;
+							speeddirect = SpeedDirect.Direct;
+							cb_vectorVisibility.label = "波向";
+						}
+						else if(calParamE.indexOf("LX") != -1)
+						{
+							SetLineSeriesStyle(s1);
+							vectorType = VectorType.WaveLiu;
+							speeddirect = SpeedDirect.SpeedandDirect;
+							cb_vectorVisibility.label = "流向";
+						}
+						
+					}
+					SiteQuery.GetSiteStatisticValuesVector(siteName,calParamE.split("&")[0],calParamE.split("&")[1],fromTime,toTime);
+				}
+				else
+				{
+					cb_vectorVisibility.visible = false;
+					SetLineSeriesStyle(s1);
+					speeddirect = SpeedDirect.Speed;
+					SiteQuery.GetSiteStatisticValues(siteName,calParamE,fromTime,toTime);
+				}
+			}
+			//设置曲线样式，与y轴label是否可见
+			private function SetLineSeriesStyle(s:SolidColorStroke):void
+			{
+				if(lineSeries1.getStyle("lineStroke") != s)
+				{
+					lineSeries1.setStyle("lineStroke",s);
+				}
+			}
+			//根据中文找英文
+			private function GetCHParam(calParam:String):String
+			{
+				var countParam:int  = itemsC.getItemIndex(calParam);
+				
+				if(countParam == -1)
+				{
+					return "error";
+				}
+				return items.getItemAt(countParam).toString();
+			}
+			
+			//根据中文找单位
+			private function GetUnit(calParam:String):String
+			{
+				var countParam:int  = itemsC.getItemIndex(calParam);
+				
+				if(countParam == -1)
+				{
+					return "error";
+				}
+				return itemsU.getItemAt(countParam).toString();
+			}
+			
+			protected function wTemplate_minimizedHandler(event:Event):void
+			{
+				// TODO Auto-generated method stub
+				this.x = 0;
+				this.y = TotalInfo.siteQuery;
+				minimize = true;
+			}
+			
+			protected function time_checkbox_changeHandler(event:Event):void
+			{
+				if(time_checkbox.selected == true)
+				{
+					startDate.enabled = false;
+					endDate.enabled = false;
+					startTime.enabled = false;
+					endTime.enabled = false;
+				}
+				else
+				{
+					startDate.enabled = true;
+					endDate.enabled = true;
+					startTime.enabled = true;
+					endTime.enabled = true;
+				}
+			}
+			private function lbFunction(obj:Object,s:String):String
+			{
+				var array:Array = s.split(' ');
+				return array[0]+"\n"+array[1];
+			}
+			
+			
+			protected function combo_type_changeHandler(event:IndexChangeEvent):void
+			{
+				conculate();
+			}
+			private function print():void
+			{
+				job = new FlexPrintJob();
+				job.printAsBitmap = true;
+				if(job.start())
+				{
+					job.addObject(g_statics,FlexPrintJobScaleType.MATCH_WIDTH);
+					job.send();
+				}
+			}
+			protected function DataTipFunction(hitData:HitData):String
+			{
+				switch((hitData.element as Object).yField)
+				{
+					case "value":
+						if(speeddirect == SpeedDirect.Direct||speeddirect == SpeedDirect.SpeedandDirect)
+						{
+							if(vectorType==VectorType.WaveLiu)
+							{
+								return "流速：" + hitData.item.speed + "m/s\n流向：" + hitData.item.direct+ "°\n时间：" + hitData.item.time;
+							}
+							else if(vectorType==VectorType.Wind)
+							{
+								return "风速：" + hitData.item.speed + "m/s\n风向：" + hitData.item.direct+ "°\n时间：" + hitData.item.time;
+							}
+							else if(vectorType==VectorType.WaveBo)
+							{
+								return "波向：" + hitData.item.direct+ "°\n时间：" + hitData.item.time;
+							}
+						}
+						else
+						{
+							return hitData.item.value + s_uint+"\n" + hitData.item.time;
+						}
+					case "value1":
+						return hitData.item.value1+s_uint;
+					case "value2":
+						return hitData.item.value2+s_uint;
+					case "value3":
+						return hitData.item.value3+s_uint;
+				}
+				return "";
+			}
+
+			//修改警戒线的对话框
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				//g_data.addItem({time:String(arrChild[0]),value:Number.NaN,value1:value1,value2:value2,value3:value3});
+				var setAlertLineTW:SetAlertLineTitleWindow = SetAlertLineTitleWindow(PopUpManager.createPopUp(this, SetAlertLineTitleWindow, true));
+				setAlertLineTW.title = "设置警戒线";
+				setAlertLineTW.x = this.stage.stageWidth/2 - setAlertLineTW.width/2;
+				setAlertLineTW.y = this.stage.stageHeight/2 - setAlertLineTW.height/2;
+				setAlertLineTW.alertValues = alertValues;
+				setAlertLineTW.addEventListener("close", closeHandler);
+				setAlertLineTW.addEventListener(AppEvent.AlertValuesSubmit,OKClickHandler);
+			}
+			//对话框关闭按钮响应事件，移除事件监听和移除对话框
+			private function closeHandler(event:Event):void {
+				
+				event.target.removeEventListener("close", closeHandler);
+				event.target.removeEventListener(AppEvent.AlertValuesSubmit, OKClickHandler);
+				PopUpManager.removePopUp(event.target as IFlexDisplayObject);
+			}
+			//对话框确定按钮监听事件，移除事件监听，重新设置linechart的警戒线和最大值最小值
+			private function OKClickHandler(event:AppEvent):void {
+				event.target.removeEventListener("close", closeHandler);
+				event.target.removeEventListener(AppEvent.AlertValuesSubmit, OKClickHandler);
+				var temp_data:ArrayCollection = new ArrayCollection();
+				temp_data.addAll(g_data);
+				g_data.removeAll();
+				maxValue = Number.NEGATIVE_INFINITY;
+				minValue = Number.POSITIVE_INFINITY;
+				for(var i=0;i<temp_data.length;i++)
+				{
+					g_data.addItem({time:temp_data[i].time,value:temp_data[i].value,speed:temp_data[i].speed,direct:temp_data[i].direct,value1:alertValues[0],value2:alertValues[1],value3:alertValues[2]});
+					setMaxMinValue(temp_data[i].value);
+				}
+				lineChartStatistics.dataProvider = g_data;
+				lineChartStatistics.validateDisplayList();
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- Define custom Strokes. -->
+		<mx:SolidColorStroke id="s1" color="0x00ff00" weight="3" alpha="1"/>
+		<mx:SolidColorStroke id="s2" color="0x00ff00" weight="0" alpha="0"/>
+		<mx:SolidColorStroke id="s3" color="0xBBCCDD" weight="2" />
+	</fx:Declarations>
+	<viewer:WidgetTemplate id="wTemplate" enableResizeButton="false" 
+						   width.statezoomin="850" height.statezoomin="400" 
+						   width.statezoomout="1200" height.statezoomout="600"
+						   closed="wTemplate_closeHandler(event)" open="wTemplate_openHandler(event)" minimized="wTemplate_minimizedHandler(event)">
+		<s:Group width="100%" height="100%">
+			<s:layout>
+				<s:VerticalLayout horizontalAlign="center" verticalAlign="middle"/>
+			</s:layout>
+			<s:Group width="100%" height="60">
+				<s:layout>
+					<s:VerticalLayout/>
+				</s:layout>
+				<s:HGroup width="100%" height="59" verticalAlign="middle">
+					<s:Label text="统计参数:" color="#ABF7F6" />
+					<s:DropDownList id="combo_type" width="135" fontSize="13" labelField="name" change="combo_type_changeHandler(event)"/>
+					<s:CheckBox id="cb_vectorVisibility" visible="false" selected="true" label="方向" fontSize="13" change="conculate()" />
+					<!--<s:Line  yFrom="10" yTo="30" stroke="{s3}" />-->
+					<s:Label text="统计时间:" color="#ABF7F6" />
+					<s:VGroup >
+						<s:HGroup>
+							<s:Label text="始:" color="#ABF7F6" /> 
+							<mx:DateField id="startDate" width="110" fontSize="13" selectedDate="{new Date()}" formatString="YYYY/MM/DD" editable="false" enabled="false"/>
+							<s:Group>
+								<s:Rect left="0" right="0" top="0" bottom="0">
+									<s:stroke>
+										<mx:SolidColorStroke alpha="{0.5}"
+															 color="{0xFFFFFF}"
+															 weight="{1}"/>
+									</s:stroke>
+								</s:Rect>
+								<CommonUtil:TimeInput paddingLeft="3" paddingRight="3"  fontSize="13"
+													  id="startTime" hours="{0}" minutes="{0}" seconds="{0}" 
+													  verticalCenter="middle" enabled="false"/>
+							</s:Group>
+						</s:HGroup>
+						<s:HGroup>
+							<s:Label text="末:" color="#ABF7F6" /> 
+							<mx:DateField id="endDate" width="110" fontSize="13" selectedDate="{new Date()}"  formatString="YYYY/MM/DD" editable="false" enabled="false"/>
+							<s:Group>
+								<s:Rect left="0" right="0" top="0" bottom="0">
+									<s:stroke>
+										<mx:SolidColorStroke alpha="{0.5}"
+															 color="{0xFFFFFF}"
+															 weight="{1}"/>
+									</s:stroke>
+								</s:Rect>
+								<CommonUtil:TimeInput paddingLeft="3" paddingRight="3"  fontSize="13"
+													  id="endTime" hours="{today.hours|0}" minutes="{today.minutes|0}" seconds="{today.seconds|0}" 
+													  verticalCenter="middle" enabled="false"/>
+							</s:Group>
+						</s:HGroup>
+					</s:VGroup>
+					<!--<s:Label text="最近12小时:" color="#ABF7F6" />-->
+					<s:CheckBox id="time_checkbox" label="近12时" selected="true" color="#ABF7F6"   change="time_checkbox_changeHandler(event)"></s:CheckBox>
+					<mx:Spacer width="100%"/>
+					<s:VGroup  horizontalAlign="center" verticalAlign="middle">
+						<s:HGroup width="150" horizontalAlign="center" verticalAlign="middle">
+							<s:Button label="修改警戒线" click="button1_clickHandler(event)"   color="#10C3DE" />
+							<s:Button label="打印" click="print()"  color="#10C3DE" />
+						</s:HGroup>
+						<s:Button label="计算时间序列" click="conculate()"  color="#10C3DE" width="150" />
+					</s:VGroup>
+					<mx:Spacer width="2"/>
+				</s:HGroup>
+			</s:Group>
+			<s:Group id="g_statics" 
+					 width="100%" 
+					 height.statezoomout="500" height.statezoomin="300" 
+					 visible="true">
+				<s:layout>
+					<s:VerticalLayout horizontalAlign="center" verticalAlign="top"/>
+				</s:layout>
+				<s:BorderContainer 
+					width="100%" height="100%"
+					borderColor="0xCCFFCC" borderAlpha="1" backgroundColor="0xFFFFFF" backgroundAlpha="1">
+					<s:VGroup horizontalAlign="center" width="100%" height="100%">
+						<mx:Label  text="{siteCHName}—{calParam}—时间序列统计" fontSize="15"   color="0x000000"/>
+						<mx:LineChart  id="lineChartStatistics"  
+									   height.statezoomout="440" height.statezoomin="240" 
+									   width="100%" 
+									   paddingRight="30"
+									   paddingLeft="10" 
+									   visible="true"  
+									   showDataTips="true"
+									   selectionMode="single"
+									   dataTipFunction="{DataTipFunction}"
+									   >
+							<mx:backgroundElements>
+								<mx:GridLines gridDirection="horizontal">
+									<mx:horizontalStroke>
+										<mx:SolidColorStroke weight="1" color="0xBBCCDD"/>
+									</mx:horizontalStroke>
+									<!--<mx:horizontalFill>
+									<mx:SolidColor color="0xCCCCCC" alpha=".66"/>
+									</mx:horizontalFill>-->
+								</mx:GridLines>
+							</mx:backgroundElements>
+							<mx:series>
+								<mx:LineSeries xField="time" 
+											   yField="value1"
+											   alpha="1"
+											   form="curve"
+											   showDataEffect="slideEffect" >
+									<mx:lineStroke>
+										<s:SolidColorStroke color="0xff0000" weight="3" alpha="1"  />
+									</mx:lineStroke>
+								</mx:LineSeries>
+								<mx:LineSeries xField="time" 
+											   yField="value2"
+											   alpha="1"
+											   form="curve"
+											   showDataEffect="slideEffect" >
+									<mx:lineStroke>
+										<s:SolidColorStroke color="0xff0000" weight="3" alpha="1"  />
+									</mx:lineStroke>
+								</mx:LineSeries>
+								<mx:LineSeries xField="time" 
+											   yField="value3"
+											   alpha="1"
+											   form="curve"
+											   showDataEffect="slideEffect" >
+									<mx:lineStroke>
+										<s:SolidColorStroke color="0xff0000" weight="3" alpha="1"  />
+									</mx:lineStroke>
+								</mx:LineSeries>
+								<mx:LineSeries id="lineSeries1"
+											   xField="time" 
+											   yField="value"
+											   alpha="1"
+											   form="curve"
+											   showDataEffect="slideEffect"
+											   lineStroke="{s1}"
+											   updateComplete="lineChartStatistics_updateCompleteHandler(event)">
+								</mx:LineSeries>
+							</mx:series>
+							
+							<mx:horizontalAxis>					    		
+								<mx:CategoryAxis id="myXAxis" categoryField="time" title="时间" />
+							</mx:horizontalAxis>
+							
+							<mx:horizontalAxisRenderers>
+								<mx:AxisRenderer axis="{myXAxis}" labelFunction="lbFunction"  labelAlign="center" canDropLabels="true" fontSize="12" color="0x000000" labelRotation="45" showLabels="true"  axisStroke="{s3}" tickStroke="{s3}" titleRenderer="{new ClassFactory(MyTextRenderer)}" />
+							</mx:horizontalAxisRenderers> 
+							
+							<mx:verticalAxis>
+								<mx:LinearAxis id="myYAxis"  minimum="{minValue}" maximum="{maxValue}" title="{calParam}({s_uint})"  />
+							</mx:verticalAxis>
+							
+							<mx:verticalAxisRenderers>
+								<mx:AxisRenderer id="myYAxisRender"  axis="{myYAxis}" fontSize="12"  showLabels="true" color="0x000000" labelRotation="45"  titleRenderer="{new ClassFactory(MyTextRenderer)}"/>
+							</mx:verticalAxisRenderers>
+						</mx:LineChart>
+					</s:VGroup>
+				</s:BorderContainer>
+			</s:Group>
+		</s:Group>
+	</viewer:WidgetTemplate>
+</viewer:BaseWidget>

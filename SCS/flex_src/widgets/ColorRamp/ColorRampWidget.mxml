@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     ////////////////////////////////////////////////////////////////////////////////
+     //
+     // Copyright (c) 2010-2011 ESRI
+     //
+     // All rights reserved under the copyright laws of the United States.
+     // You may freely redistribute and use this software, with or
+     // without modification, provided you include the original copyright
+     // and use restrictions.  See use restrictions in the file:
+     // <install location>/License.txt
+     //
+     ////////////////////////////////////////////////////////////////////////////////
+-->
+<viewer:BaseWidget xmlns:fx="http://ns.adobe.com/mxml/2009"
+                   xmlns:s="library://ns.adobe.com/flex/spark"
+                   xmlns:mx="library://ns.adobe.com/flex/mx"
+                   xmlns:viewer="com.esri.viewer.*"
+                   xmlns:ColorRamp="widgets.ColorRamp.*"
+                   widgetConfigLoaded="init()"
+				   preinitialize="basewidget1_preinitializeHandler(event)">
+    <!--
+         This is the OverviewMapWidget widget.
+         @@includeFiles widgets/OverviewMapWidget/OverviewMapComponent.mxml
+    -->
+    <fx:Script>
+        <![CDATA[
+			import com.esri.ags.Map;
+			import com.esri.ags.events.MapEvent;
+			import com.esri.ags.layers.DynamicMapServiceLayer;
+			import com.esri.ags.layers.GraphicsLayer;
+			import com.esri.ags.layers.Layer;
+			import com.esri.viewer.AppEvent;
+			import com.util.GlobalProperty;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.Image;
+			import mx.events.FlexEvent;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			private var _colorrampPath:ArrayCollection;
+			[Bindable]
+			private var _colorrampVisible:Boolean = false;
+			[Bindable]
+			private var _maxValue:Number = 0;
+			[Bindable]
+			private var _minValue:Number = 0;
+			
+            private function init():void
+            {
+                // set these properties before setting the configXML
+				var openDefaultToolTip:String = "单击打开色标";
+				var closeDefaultToolTip:String = "单击关闭色标";
+//                if (configXML)
+//                {
+//					ColorRamp.configXML = configXML;
+//                }
+				if (configXML)
+				{
+					// overviewmap open/close tooltip label
+					ColorRamp.OpenToolTip = configXML.labels.opentooltip || openDefaultToolTip;
+					ColorRamp.CloseToolTip = configXML.labels.closetooltip || closeDefaultToolTip;
+					
+					_colorrampPath = new ArrayCollection();
+					
+					var colorrampList:XMLList = configXML..colorramp;
+					for each(var colorramp:XML in colorrampList)
+					{
+						_colorrampPath.addItem({type:String(colorramp.type),path:String(colorramp.path)});
+					}
+				}
+				
+				map.addEventListener(MapEvent.LAYER_ADD, onLayerAdd_cr, false, 0, false);
+				map.addEventListener(MapEvent.LAYER_REMOVE, onLayerRemove_cr, false, 0, false);
+				map.addEventListener(MapEvent.LAYER_REMOVE_ALL, onLayerRemoveAll_cr, false, 0, false);
+				map.addEventListener(MapEvent.LAYER_REORDER, onLayerReorder_cr, false, 0, false);
+            }
+			
+			/**
+			 * Registers the new map layer in the ColorRamp.
+			 */
+			private function onLayerAdd_cr(event:MapEvent):void
+			{
+				setNewColorramp();
+			}
+			
+			private function onLayerRemove_cr(event:MapEvent):void
+			{
+				setNewColorramp();
+			}
+			
+			private function onLayerRemoveAll_cr(event:MapEvent):void
+			{
+				setNewColorramp();
+			}
+			
+			private function onLayerReorder_cr(event:MapEvent):void
+			{
+				setNewColorramp();
+			}
+			
+			private function setNewColorramp():void
+			{
+				var type:String = getTopLayerType();
+				
+				var path:String = getColorrampPathByType(type);
+				//如果path为return，则不作处理
+				if(path=="return")
+				{
+					return;
+				}
+					
+				if(path!="")
+				{
+					
+					ColorRamp.ImageSource = path + GlobalProperty.version;
+					_colorrampVisible=true;
+					if(type == "typhoon")
+					{
+						ColorRamp.ShowTyphoonExpanded()
+					}
+					else if(type == "W10Contour")
+					{
+						ColorRamp.ShowW10Contour()
+					}
+					else
+					{
+						ColorRamp.ShowExpanded();
+					}
+				}
+				else
+				{
+					ColorRamp.ShowCollapsed();
+					_colorrampVisible=false;
+				}
+				
+			}
+			
+			private function getTopLayerType():String
+			{				
+				var layer:Layer =null;
+				var curPtr:int = map.layerIds.length - 1;
+				for(; curPtr >=0; curPtr--)
+				{
+					var topLayerName:String = map.layerIds[curPtr];
+					layer = map.getLayer(topLayerName);
+					
+//					if(layer.visible == true && layer is DynamicMapServiceLayer)
+//						break;
+					if(layer.visible == true 
+						&& layer is GraphicsLayer 
+						&& (layer.id.indexOf("NumericalLayer") != -1 || layer.id=="TyphoonLayer"))
+					{
+						//矢量图没有图例，跳过 
+						var pattern:RegExp=/_HSContour_|_DIR_|_W10_/i;
+						if(layer.name.search(pattern) == -1 )
+						{
+							break;
+						}
+					}
+				}
+				
+				if(curPtr!=-1)
+				{
+					var layerInfo:ArrayCollection = layer.document as ArrayCollection;
+					if(layer.id.indexOf("NumericalLayer") != -1 && layerInfo.length > 5)//如果layer.document有最大最小值
+					{
+						_maxValue = layerInfo[4] == ""?0:layerInfo[4];
+						_minValue = layerInfo[5] == ""?0:layerInfo[5];
+					}
+					var type:String = layerInfo[0];
+					if(type && type != "")
+					{
+						return type;
+					}
+				}
+				
+				return "";
+			}
+			
+			private function getColorrampPathByType(type:String):String
+			{
+				for each(var cr:Object in _colorrampPath)
+				{
+					if(cr.type == type)
+					{
+						return cr.path as String;
+					}
+				}
+				return "";
+			}
+			
+			protected function basewidget1_preinitializeHandler(event:FlexEvent):void
+			{
+				AppEvent.dispatch(AppEvent.WIDGETDOWNLOADCOMPLETE);
+			}
+			
+		]]>
+    </fx:Script>
+
+    <ColorRamp:ColorRampComponent id="ColorRamp" visible="{_colorrampVisible}" MaxValue="{_maxValue}" MinValue="{_minValue}" />
+
+</viewer:BaseWidget>

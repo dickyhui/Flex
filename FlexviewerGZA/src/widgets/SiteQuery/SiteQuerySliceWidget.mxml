@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+////////////////////////////////////////////////////////////////////////////////
+//
+// Copyright (c) 2012 GIS KEY LAB ZJU
+//
+// 
+//
+////////////////////////////////////////////////////////////////////////////////
+-->
+<viewer:BaseWidget xmlns:fx="http://ns.adobe.com/mxml/2009"
+				   xmlns:s="library://ns.adobe.com/flex/spark"
+				   xmlns:mx="library://ns.adobe.com/flex/mx"
+				   xmlns:esri="http://www.esri.com/2008/ags"
+				   xmlns:viewer="com.esri.viewer.*" 
+				   width="994" height="420"
+				   widgetConfigLoaded="init()" isResizeable="false" xmlns:CommonUtil="widgets.CommonUtil.*">
+	<fx:Style>
+		@namespace s "library://ns.adobe.com/flex/spark";
+		@namespace mx "library://ns.adobe.com/flex/mx";
+		@namespace esri "http://www.esri.com/2008/ags";
+		@namespace viewer "com.esri.viewer.*";
+		
+		.lb{			
+			color:#a2a2a2;
+		}
+	</fx:Style>
+
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Graphic;
+			import com.esri.ags.geometry.MapPoint;
+			import com.esri.ags.geometry.Polyline;
+			import com.esri.ags.layers.GraphicsLayer;
+			import com.esri.ags.webmap.PopUpRenderer;
+			import com.esri.ags.webmap.supportClasses.PopUpInfo;
+			import com.esri.viewer.AppEvent;
+			import com.esri.viewer.TotalInfo;
+			import com.esri.viewer.ViewerContainer;
+			import com.esri.viewer.WidgetStates;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.Image;
+			import mx.core.FlexGlobals;
+			import mx.events.ListEvent;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.utils.StringUtil;
+			
+			import spark.components.supportClasses.ItemRenderer;
+			import spark.events.IndexChangeEvent;
+			[Bindable]
+			private var _sliceImageSource:String="";
+			[Bindable]
+			private var _IP:String;
+			private var _doJustOnce:Boolean = true;
+			private var _siteName:String;
+			[Embed(source="assets/images/Error.png")]
+			private var errorLogo:Class;
+			
+			private function init():void
+			{
+				_IP = configXML.ServerIP;
+				var siteCHName:String = ""; 
+				//加载失败监听
+				SliceImage.addEventListener(IOErrorEvent.IO_ERROR,ImageAddFailedHandler);
+				switch(_siteName)
+				{
+					case "PRE_A":
+						siteCHName = "潮汐预报点A";
+						SliceImage.load("http://" + _IP + "/GZA_Website/Data/slice/A_slice.png");
+						break;
+					case "PRE_B":
+						siteCHName = "潮汐预报点B";
+						SliceImage.load("http://" + _IP + "/GZA_Website/Data/slice/B_slice.png");
+						break;
+					case "PRE_C":
+						siteCHName = "潮汐预报点C";
+						SliceImage.load("http://" + _IP + "/GZA_Website/Data/slice/C_slice.png");
+						break;
+					case "PRE_D":
+						siteCHName = "潮汐预报点D";
+						SliceImage.load("http://" + _IP + "/GZA_Website/Data/slice/D_slice.png");
+						break;
+					case "PRE_E":
+						siteCHName = "潮汐预报点E";
+						SliceImage.load("http://" + _IP + "/GZA_Website/Data/slice/E_slice.png");
+						break;
+					case "PRE_F":
+						siteCHName = "潮汐预报点F";
+						SliceImage.load("http://" + _IP + "/GZA_Website/Data/slice/F_slice.png");
+						break;
+					case "PRE_G":
+						siteCHName = "潮汐预报点G";
+						SliceImage.load("http://" + _IP + "/GZA_Website/Data/slice/G_slice.png");
+						break;
+				}
+				this.wTemplate.widgetTitle = siteCHName + "——剖面图";
+				this.left = 20;
+				this.top = 130;
+			}
+			
+			private function ImageAddFailedHandler(evt:IOErrorEvent):void
+			{
+				if(evt.text.indexOf("sliceerror.png") == -1)
+				{
+					SliceImage.load("http://" + _IP + "/GZA_Website/Data/slice/sliceerror.png");
+				}				
+			}
+			
+			private function wTemplate_closeHandler(event:Event):void
+			{
+			}
+			
+			private function wTemplate_openHandler(event:Event):void
+			{
+				if(this.sendData)
+				{
+					_siteName = this.sendData.name;
+				}
+			}
+			
+			private function SetImageSliceSource(siteName:String):void
+			{
+			}
+			
+			protected function wTemplate_minimizedHandler(event:Event):void
+			{
+				// TODO Auto-generated method stub
+				this.x = 0;
+				this.y = TotalInfo.siteQuery;
+			}
+			
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				var ftArr:Array = hisSliceDate.text.split(" ")[0].split("/");
+				var sliceTime:String = ftArr[0] + ftArr[1] + ftArr[2] + "20";
+				switch(_siteName)
+				{
+					case "PRE_A":
+						SliceImage.load("http://" + _IP + "/GZA_Website/Data/slice/A_slice" + sliceTime + ".png");
+						break;
+					case "PRE_B":
+						SliceImage.load("http://" + _IP + "/GZA_Website/Data/slice/B_slice" + sliceTime + ".png");
+						break;
+					case "PRE_C":
+						SliceImage.load("http://" + _IP + "/GZA_Website/Data/slice/C_slice" + sliceTime + ".png");
+						break;
+					case "PRE_D":
+						SliceImage.load("http://" + _IP + "/GZA_Website/Data/slice/D_slice" + sliceTime + ".png");
+						break;
+					case "PRE_E":
+						SliceImage.load("http://" + _IP + "/GZA_Website/Data/slice/E_slice" + sliceTime + ".png");
+						break;
+					case "PRE_F":
+						SliceImage.load("http://" + _IP + "/GZA_Website/Data/slice/F_slice" + sliceTime + ".png");
+						break;
+					case "PRE_G":
+						SliceImage.load("http://" + _IP + "/GZA_Website/Data/slice/G_slice" + sliceTime + ".png");
+						break;
+				}
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+	</fx:Declarations>
+	<viewer:WidgetTemplate id="wTemplate" enableResizeButton="false" 
+						   width="994" height="420"
+						   closed="wTemplate_closeHandler(event)" open="wTemplate_openHandler(event)" minimized="wTemplate_minimizedHandler(event)">
+		<s:VGroup id="group" width="100%" height="100%" verticalAlign="middle" horizontalAlign="center">
+			<s:HGroup  verticalAlign="middle" horizontalAlign="center">
+				<s:Label text="起报时间:" color="#A8F9B5" />
+				<mx:DateField id="hisSliceDate" width="160" selectedDate="{new Date()}" formatString="YYYY/MM/DD 20:00:00" editable="false"  fontSize="13"/>
+				<s:Button label="显示" color="#A8F9B5" width="100" click="button1_clickHandler(event)" />
+			</s:HGroup>
+			<mx:Image id="SliceImage" width="954" height="335" />
+		</s:VGroup>
+	</viewer:WidgetTemplate>
+</viewer:BaseWidget>

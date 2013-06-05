@@ -1,0 +1,319 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Products:ProductBase xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					  xmlns:s="library://ns.adobe.com/flex/spark" 
+					  xmlns:mx="library://ns.adobe.com/flex/mx"
+					  xmlns:Products="widgets.Products.*"
+					  width="100%" height="100%"
+					  creationComplete="creationCompleteHandler(event)"
+					  itemTitle="中尺度涡">
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Graphic;
+			import com.esri.ags.Map;
+			import com.esri.ags.geometry.MapPoint;
+			import com.esri.ags.geometry.Polyline;
+			import com.esri.ags.layers.GraphicsLayer;
+			import com.esri.ags.symbols.SimpleLineSymbol;
+			import com.esri.ags.symbols.SimpleMarkerSymbol;
+			import com.esri.ags.symbols.Symbol;
+			import com.esri.ags.symbols.TextSymbol;
+			import com.esri.ags.utils.WebMercatorUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import spark.events.IndexChangeEvent;
+			
+			import widgets.Products.ProductsWidgetXml;
+			
+			[Bindable]
+			private var yearProvider:ArrayCollection = new ArrayCollection();
+			[Bindable]
+			private var monthProvider:ArrayCollection = new ArrayCollection();
+			[Bindable]
+			private var wNumberProvider:ArrayCollection = new ArrayCollection();
+			[Bindable]
+			public var map:Map;
+			
+			private var zcdwPositionLayer:GraphicsLayer = new GraphicsLayer();
+			private var zcdwTrackLayer:GraphicsLayer = new GraphicsLayer();
+			
+			protected function creationCompleteHandler(event:FlexEvent):void
+			{
+				this.map = ProductsWidgetXml.map;
+				
+				zcdwPositionLayer.id = "zcdwPositionLayer";
+				zcdwPositionLayer.name = "zcdwPosition Layer";
+				map.addLayer(zcdwPositionLayer);
+				
+				zcdwTrackLayer.id = "zcdwTrackLayer";
+				zcdwTrackLayer.name = "zcdwTrack Layer";
+				map.addLayer(zcdwTrackLayer);
+			}
+			public override function closeProductFunction():void
+			{
+				zcdwPositionLayer.clear();
+				zcdwTrackLayer.clear();
+			}
+			public override function openProductFunctionEveryTime():void
+			{
+			}
+			public override function openProductFunctionOnce():void
+			{
+				fxzdWtzInfoHome.GetWtzAllYears();
+				fxzdWtzInfoHome.GetWtzAllIds();
+			}
+			
+			protected function GetWtzInfoMonthly_resultHandler(event:ResultEvent):void
+			{
+				if(event.result != null)
+				{
+					var result:ArrayCollection = event.result as ArrayCollection;
+					zcdwPositionLayer.clear();
+					for each(var wtz:FxzdWtzInfo in result)
+					{
+						var graphic:Graphic = new Graphic();
+						var color:Number = Number(wtz.scope)>0?16711680:255;
+						var markSymbol:Symbol = new SimpleMarkerSymbol('circle',10,color);
+						graphic = getPointGraphic(wtz.longitude,wtz.latitude,wtz.id.WNumber.toString(),markSymbol,false);
+						zcdwPositionLayer.add(graphic);
+					}
+					zcdwPositionLayer.refresh();
+					map.zoomToInitialExtent();
+				}
+			}
+			
+			protected function GetWtzAllYears_resultHandler(event:ResultEvent):void
+			{
+				if(event.result != null)
+				{
+					var result:ArrayCollection = event.result as ArrayCollection;
+					yearProvider.addItem("全部");
+					yearProvider.addAll(result);
+					ddl_year.selectedIndex = 0;
+					fxzdWtzInfoHome.GetWtzMonthbyYear(0);//0表示获取所有月份
+				}
+			}
+			
+			protected function GetWtzMonthbyYear_resultHandler(event:ResultEvent):void
+			{
+				if(event.result != null)
+				{
+					var result:ArrayCollection = event.result as ArrayCollection;
+					monthProvider = result;
+					ddl_month.selectedIndex = 0;
+				}
+			}
+			
+			protected function GetWtzInfoById_resultHandler(event:ResultEvent):void
+			{
+				if(event.result != null)
+				{
+					var result:ArrayCollection = event.result as ArrayCollection;
+					zcdwTrackLayer.clear();
+					
+					//轨迹线
+					var simpleLineSymbol:SimpleLineSymbol = new SimpleLineSymbol("solid",0x000000,1,2);
+					var paths:Array = new Array();
+					var path:Array = new Array();
+					var graphicLine:Graphic = new Graphic();
+					zcdwTrackLayer.add(graphicLine);
+					for(var i:int=0;i<result.length;i++)
+					{
+						var fxzdWtzInfo:FxzdWtzInfo = new FxzdWtzInfo();
+						fxzdWtzInfo = result[i] as FxzdWtzInfo;
+						//点
+						var color:Number = Number(fxzdWtzInfo.scope)>0?16711680:255;
+						var mapPoint:MapPoint = new MapPoint(fxzdWtzInfo.longitude,fxzdWtzInfo.latitude,map.spatialReference);
+						var pointSymbol:SimpleMarkerSymbol = new SimpleMarkerSymbol("circle",15,color);
+						var graphicPoint:Graphic = new Graphic(geographicToMercator(mapPoint),pointSymbol);	
+						//点的文本提示：时间
+						
+						var toolTip:String = "(" + (i+1).toString()+ "): "
+							+fxzdWtzInfo.id.occurDate.fullYear
+							+"-"
+							+(fxzdWtzInfo.id.occurDate.month+1)
+							+"-"
+							+fxzdWtzInfo.id.occurDate.date;
+						//toolTip += "\n经度:" + "\n纬度:";
+						graphicPoint.mouseFocusEnabled = false;
+						graphicPoint.mouseEnabled = false;
+						//graphicPoint.mouseChildren = false;
+						//graphicPoint.toolTip = toolTip;
+						zcdwTrackLayer.add(graphicPoint);
+						//文本
+						var textformat:TextFormat = new TextFormat("微软雅黑",14,null);
+						var textSymbol:TextSymbol = new TextSymbol((i+1).toString(), null,0xffffff,1,false,0,false,16777215,"middle",0,0,0,textformat);
+						var graphicText:Graphic = new Graphic(geographicToMercator(mapPoint),textSymbol,null);
+						graphicText.toolTip = toolTip;
+						zcdwTrackLayer.add(graphicText);
+						//构成argo线的点
+						path.push(geographicToMercator(mapPoint));
+					}
+					paths.push(path);
+					var polyline:Polyline = new Polyline(paths,map.spatialReference);
+					graphicLine.geometry = polyline;
+					graphicLine.symbol = simpleLineSymbol;
+					graphicLine.mouseEnabled = false;
+					map.extent = polyline.extent;
+				}
+			}
+			
+			protected function GetWtzAllIds_resultHandler(event:ResultEvent):void
+			{
+				if(event.result != null)
+				{
+					var result:ArrayCollection = event.result as ArrayCollection;
+					wNumberProvider = result;
+					ddl_WNumber.selectedIndex = 0;
+				}
+				
+			}
+			
+			protected function GetWtzInfoMonthly_faultHandler(event:FaultEvent):void
+			{
+				// TODO Auto-generated method stub
+				
+			}
+			
+			protected function GetWtzAllYears_faultHandler(event:FaultEvent):void
+			{
+				// TODO Auto-generated method stub
+				
+			}
+			protected function GetWtzMonthbyYear_faultHandler(event:FaultEvent):void
+			{
+				// TODO Auto-generated method stub
+				
+			}
+			
+			protected function GetWtzInfoById_faultHandler(event:FaultEvent):void
+			{
+				// TODO Auto-generated method stub
+				
+			}
+			
+			protected function GetWtzAllIds_faultHandler(event:FaultEvent):void
+			{
+				// TODO Auto-generated method stub
+				
+			}
+			
+			protected function showPosition_clickHandler(event:MouseEvent):void
+			{
+				if(ddl_year.selectedItem!=null&&ddl_month.selectedItem!=null)
+				{
+					var year:Number = ddl_year.selectedItem=="全部"?0:ddl_year.selectedItem;
+					fxzdWtzInfoHome.GetWtzInfoMonthly(year,ddl_month.selectedItem);
+				}
+			}
+			
+			protected function clearPosition_clickHandler(event:MouseEvent):void
+			{
+				zcdwPositionLayer.clear();
+			}
+			
+			protected function year_changeHandler(event:IndexChangeEvent):void
+			{
+				var year:Number = ddl_year.selectedItem=="全部"?0:ddl_year.selectedItem;
+				fxzdWtzInfoHome.GetWtzMonthbyYear(year);
+			}
+			
+			protected function WNumber_changeHandler(event:IndexChangeEvent):void
+			{
+				var year:Number = ddl_year.selectedItem=="全部"?0:ddl_year.selectedItem;
+				fxzdWtzInfoHome.GetWtzMonthbyYear(year);
+			}
+			
+			protected function showTrack_clickHandler(event:MouseEvent):void
+			{
+				if(ddl_WNumber.selectedItem!=null)
+				{
+					fxzdWtzInfoHome.GetWtzInfoById(ddl_WNumber.selectedItem);
+				}
+			}
+			
+			protected function clearTrack_clickHandler(event:MouseEvent):void
+			{
+				zcdwTrackLayer.clear();
+			}
+			
+			private function getPointGraphic(x:Number,y:Number,name:String,symbol:Symbol,b:Boolean=true):Graphic
+			{
+				var gra:Graphic = new Graphic(geographicToMercator(new MapPoint(x,y,map.spatialReference)),symbol);
+				gra.name = name;
+				if(b)
+				{
+					gra.addEventListener(MouseEvent.MOUSE_OVER,mouseOver);
+				}
+				return gra;
+			}
+			private function geographicToMercator(geo:MapPoint):MapPoint
+			{
+				const web:MapPoint = WebMercatorUtil.geographicToWebMercator(geo) as MapPoint;
+				return web;
+			}
+			private function mouseOver(event:Event):void
+			{
+//				var graphic:Graphic = event.currentTarget as Graphic;
+//				var point:MapPoint = graphic.geometry as MapPoint;
+//				var contentARGO:ArgoSiteInfoRender = new ClassFactory(ArgoSiteInfoRender).newInstance();
+//				contentARGO.data = graphic.attributes as Object;
+//				map.infoWindow.content = contentARGO;
+//				map.infoWindow.content.owner = map;
+//				map.infoWindow.closeButtonVisible = false;
+//				map.infoWindow.show(point);
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<s:RemoteObject id="fxzdWtzInfoHome" destination="fxzdWtzInfoHome">
+			<s:method name="GetWtzInfoMonthly" result="GetWtzInfoMonthly_resultHandler(event)" fault="GetWtzInfoMonthly_faultHandler(event)" />
+			<s:method name="GetWtzAllYears" result="GetWtzAllYears_resultHandler(event)" fault="GetWtzAllYears_faultHandler(event)" />
+			<s:method name="GetWtzMonthbyYear" result="GetWtzMonthbyYear_resultHandler(event)" fault="GetWtzMonthbyYear_faultHandler(event)" />
+			<s:method name="GetWtzInfoById" result="GetWtzInfoById_resultHandler(event)" fault="GetWtzInfoById_faultHandler(event)" />
+			<s:method name="GetWtzAllIds" result="GetWtzAllIds_resultHandler(event)" fault="GetWtzAllIds_faultHandler(event)" />
+		</s:RemoteObject>
+	</fx:Declarations>
+	<s:BorderContainer top="45"  width="230" left="10"  height="85"
+					   styleName="BorderContainer" >
+		<s:Label x="10" y="10" text="位置分布" />
+		<s:HGroup x="10" y="30" width="100%" verticalAlign="middle">
+			<s:Label text="年：" />
+			<s:DropDownList id="ddl_year" width="75" dataProvider="{yearProvider}" selectedIndex="0" change="year_changeHandler(event)" />
+			<s:Label text="月：" />
+			<s:DropDownList id="ddl_month" width="65" dataProvider="{monthProvider}" selectedIndex="0" />
+		</s:HGroup>
+		<s:HGroup x="10" y="55" width="100%" verticalAlign="middle" horizontalAlign="center">
+			<s:Button label="显示"  click="showPosition_clickHandler(event)"/>
+			<s:Spacer width="5" />
+			<s:Button label="清除"  click="clearPosition_clickHandler(event)"/>
+		</s:HGroup>
+		
+	</s:BorderContainer>
+	<s:BorderContainer top="135"  width="230" left="10" height="85"
+					   styleName="BorderContainer" >
+		<s:Label x="10" y="10" text="移动轨迹" />
+		<s:HGroup x="10" y="30" width="100%" verticalAlign="middle">
+			<s:Label text="涡编号：" />
+			<s:DropDownList id="ddl_WNumber" width="75" dataProvider="{wNumberProvider}" selectedIndex="0" />
+		</s:HGroup>
+		<s:HGroup x="10" y="55" width="100%" verticalAlign="middle" horizontalAlign="center">
+			<s:Button label="显示"  click="showTrack_clickHandler(event)"/>
+			<s:Spacer width="5" />
+			<s:Button label="清除"  click="clearTrack_clickHandler(event)"/>
+		</s:HGroup>
+	</s:BorderContainer>
+	<s:BorderContainer top="226"  width="230" left="10" height="25"
+					   styleName="BorderContainer" >
+		<s:HGroup x="10" y="5" width="100%" horizontalAlign="center" verticalAlign="middle">
+			<s:Label text="注：" />
+			<s:Label text="红色为暖涡" color="0xff0000" />
+			<s:Spacer width="5" />
+			<s:Label text="蓝色为冷涡" color="0x0000ff" />
+		</s:HGroup>
+	</s:BorderContainer>
+		
+</Products:ProductBase>

@@ -1,0 +1,63 @@
+<?xml version="1.0" ?>
+<configuration>
+	<itemE>
+		<name>NTDHLJ</name>
+		<param>
+			TWOLS&TWOLX
+			,THREELS&THREELX
+			,FOURLS&FOURLX
+			,FIVELS&FIVELX
+			,SIXLS&SIXLX
+			,SEVENLS&SEVENLX
+			,EIGHTLS&EIGHTLX
+			,NINELS&NINELX
+			,TENLS&TENLX
+			,ELEVENLS&ELEVENLX
+			,TWELVELS&TWELVELX
+			,THIRTEENLS&THIRTEENLX
+			,FOURTEENLS&FOURTEENLX
+			,FIFTEENLS&FIFTEENLX
+		</param>
+	</itemE>
+	<itemC>
+		<name>NTDHLJ</name>
+		<param>
+			2m深流速流向
+			,3m深流速流向
+			,4m深流速流向
+			,5m深流速流向
+			,6m深流速流向
+			,7m深流速流向
+			,8m深流速流向
+			,9m深流速流向
+			,10m深流速流向
+			,11m深流速流向
+			,12m深流速流向
+			,13m深流速流向
+			,14m深流速流向
+			,15m深流速流向
+		</param>
+	</itemC>
+	<itemU>
+		<name>NTDHLJ</name>
+		<param>
+			m/s
+			,m/s
+			,m/s
+			,m/s
+			,m/s
+			,m/s
+			,m/s
+			,m/s
+			,m/s
+			,m/s
+			,m/s
+			,m/s
+			,m/s
+			,m/s
+		</param>
+	</itemU>
+	<ServerIP> 202.121.180.148 </ServerIP>
+</configuration>
+
+	

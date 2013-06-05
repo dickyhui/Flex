@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<!-- Generated 2013-1-18 14:26:33 by Hibernate Tools 3.4.0.CR1 -->
+<hibernate-mapping>
+    <class name="bean.TyphMonitor" table="TYPH_MONITOR">
+        <composite-id name="id" class="bean.TyphMonitorId">
+            <key-property name="typhNum" type="long">
+                <column name="TYPH_NUM" precision="10" scale="0" />
+            </key-property>
+            <key-property name="routeTime" >
+                <column name="ROUTE_TIME" />
+            </key-property>
+        </composite-id>
+        <property name="lat" type="big_decimal">
+            <column name="LAT" precision="10" />
+        </property>
+        <property name="lon" type="big_decimal">
+            <column name="LON" precision="10" />
+        </property>
+        <property name="windSpeed" type="big_decimal">
+            <column name="WIND_SPEED" precision="10" />
+        </property>
+        <property name="strength" type="string">
+            <column name="STRENGTH" length="10" />
+        </property>
+        <property name="radius7" type="big_decimal">
+            <column name="RADIUS_7" precision="10" />
+        </property>
+        <property name="radius10" type="big_decimal">
+            <column name="RADIUS_10" precision="10" />
+        </property>
+    </class>
+</hibernate-mapping>

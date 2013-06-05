@@ -1,0 +1,48 @@
+<?xml version="1.0" ?>
+<configuration>
+	<itemE>
+		<name>BCY</name>
+		<param>
+			CHAOWEI
+			,ZDBG
+			,ZDBZQ
+			,TENTHBG
+			,TENTHZQ
+			,THIRDBG
+			,THIRDZQ
+			,PJBG
+			,PJZQ
+		</param>
+	</itemE>
+	<itemC>
+		<name>BCY</name>
+		<param>
+			潮位
+			,最大波高
+			,最大波周期
+			,十分之一波高
+			,十分之一波周期
+			,三分之一波高
+			,三分之一波周期
+			,平均波高
+			,平均周期 
+		</param>
+	</itemC>
+	<itemU>
+		<name>BCY</name>
+		<param>
+			m
+			,m
+			,s
+			,m
+			,s
+			,m
+			,s
+			,m
+			,s
+		</param>
+	</itemU>
+	<ServerIP> 202.121.180.148 </ServerIP>
+</configuration>
+
+	

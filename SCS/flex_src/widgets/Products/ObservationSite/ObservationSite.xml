@@ -1,0 +1,47 @@
+<ObservationSiteList>
+	<ObservationSite area='TW01' alias='龙洞'>
+		<pt x='121.922500' y='25.065300' />
+	</ObservationSite>
+	<ObservationSite area='TW02' alias='龟山岛'>
+		<pt x='121.923300' y='24.846900' />
+	</ObservationSite>
+	<ObservationSite area='TW03' alias='苏澳'>
+		<pt x='121.879600' y='24.569600' />
+	</ObservationSite>
+	<ObservationSite area='TW04' alias='金门'>
+		<pt x='118.413300' y='24.380000' />
+	</ObservationSite>
+	<ObservationSite area='TW05' alias='新竹'>
+		<pt x='120.501300' y='24.452100' />
+	</ObservationSite>
+	<ObservationSite area='TW06' alias='澎湖'>
+		<pt x='119.673300' y='23.670000' />
+	</ObservationSite>
+	<ObservationSite area='TW07' alias='七股'>
+		<pt x='120.008300' y='23.095600' />
+	</ObservationSite>
+	<ObservationSite area='TW08' alias='大鹏湾'>
+		<pt x='120.433900' y='22.416700' />
+	</ObservationSite>
+	<ObservationSite area='TW09' alias='小琉球'>
+		<pt x='120.351400' y='22.313900' />
+	</ObservationSite>
+	<ObservationSite area='TW10' alias='鹅銮鼻'>
+		<pt x='120.831400' y='21.900600' />
+	</ObservationSite>
+	<ObservationSite area='TW11' alias='花莲'>
+		<pt x='121.630800' y='24.035600' />
+	</ObservationSite>
+	<ObservationSite area='TW12' alias='台东外洋'>
+		<pt x='124.074000' y='21.766000' />
+	</ObservationSite>
+	<ObservationSite area='TW13' alias='马祖'>
+		<pt x='120.536100' y='25.376900' />
+	</ObservationSite>
+	<ObservationSite area='TW14' alias='东沙岛'>
+		<pt x='118.829100' y='21.041700' />
+	</ObservationSite>
+	<ObservationSite area='TW15' alias='台东'>
+		<pt x='121.140000' y='22.722000' />
+	</ObservationSite>
+</ObservationSiteList>

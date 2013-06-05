@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     ////////////////////////////////////////////////////////////////////////////////
+     //
+     // Copyright (c) 2010-2011 ESRI
+     //
+     // All rights reserved under the copyright laws of the United States.
+     // You may freely redistribute and use this software, with or
+     // without modification, provided you include the original copyright
+     // and use restrictions.  See use restrictions in the file:
+     // <install location>/License.txt
+     //
+     ////////////////////////////////////////////////////////////////////////////////
+-->
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009"
+               xmlns:s="library://ns.adobe.com/flex/spark"
+               xmlns:viewer="com.esri.viewer.*"
+               xmlns:managers="com.esri.viewer.managers.*"
+			   xmlns:other="com.other.*"
+			   creationComplete="application1_creationCompleteHandler(event)"
+               pageTitle="欢迎访问港珠澳大桥岛隧工程海洋环境预报保障系统！" xmlns:util="com.util.*">
+
+    <fx:Style source="defaults.css"/>
+
+    <fx:Metadata>
+        [ResourceBundle("ViewerStrings")]
+    </fx:Metadata>
+	<fx:Script>
+		<![CDATA[		
+			import mx.events.FlexEvent;
+			import mx.managers.BrowserManager;
+			import mx.managers.IBrowserManager;
+			import mx.utils.URLUtil;
+			
+			private function changeView(event:Event):void
+			{
+				this.currentState="main";
+			}
+		
+
+			protected function application1_creationCompleteHandler(event:FlexEvent):void
+			{
+//				var browser:IBrowserManager=BrowserManager.getInstance();
+//				browser.init();
+//				var param:Object=URLUtil.stringToObject(browser.fragment, "&");
+//				if(param.user == "ocean" && param.password == "ocean123" )
+//				{
+//					this.currentState="main";
+//				}
+				var userKey:* = ExternalInterface.call("getUserKey");
+				if(userKey == "GZAUserOcean9527")
+				{
+					this.currentState="main";
+				}
+			}
+		]]>
+	</fx:Script>
+	<s:states>
+		<s:State name="loginPanel" />
+		<s:State name="main" />
+	</s:states>
+	
+	<s:Group width="100%" height="100%">
+		<s:VGroup excludeFrom="main" visible="false" id="login" visible.loginPanel="true" width="100%" height="100%"  verticalAlign="middle" horizontalAlign="center">
+			<util:LoginPanel  validLogin="changeView(event)" />
+		</s:VGroup>
+		<s:Group includeIn="main" visible="false" id="container" visible.main="true" width="100%" height="100%">
+			<viewer:ViewerContainer>
+				<viewer:configManager>
+					<managers:ConfigManager/>
+				</viewer:configManager>
+				<viewer:dataManager>
+					<managers:DataManager/>
+				</viewer:dataManager>
+				<viewer:mapManager>
+					<managers:MapManager/>
+				</viewer:mapManager>
+				<viewer:uiManager>
+					<managers:UIManager/>
+				</viewer:uiManager>
+				<viewer:widgetManager>
+					<managers:WidgetManager/>
+				</viewer:widgetManager>
+				<viewer:myManager>
+					<managers:MyManager/>
+				</viewer:myManager>
+			</viewer:ViewerContainer>
+		</s:Group>
+	</s:Group>
+	
+	<s:transitions>
+		<s:Transition id="tomain" fromState="loginPanel" toState="main">
+			<s:Sequence targets="{[login,container]}">
+				<s:Fade alphaFrom="1.0" alphaTo="0.0" duration="500" target="{login}"/>
+				<s:Fade alphaFrom="0.0" alphaTo="1.0" duration="1000" target="{container}"/>
+			</s:Sequence>
+		</s:Transition>
+	</s:transitions>
+</s:Application>

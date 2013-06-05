@@ -1,0 +1,31 @@
+<?xml version="1.0" ?>
+<configuration>
+	<itemE>
+		<name>YBQXD</name>
+		<param>
+			TENFS&TENFX
+			,TWOWD
+			,HPMQY
+			,TWOXDSD
+		</param>
+	</itemE>
+	<itemC>
+		<name>YBQXD</name>
+		<param>
+			十米风速风向
+			,两米温度
+			,海平面气压
+			,两米相对湿度
+		</param>
+	</itemC>
+	<itemU>
+		<name>YBQXD</name>
+		<param>
+			m/s
+			,℃
+			,hPa
+			,%
+		</param>
+	</itemU>
+	<ServerIP> 202.121.180.148 </ServerIP>
+</configuration>

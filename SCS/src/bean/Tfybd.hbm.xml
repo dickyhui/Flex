@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<!-- Generated 2013-3-8 16:06:27 by Hibernate Tools 3.4.0.CR1 -->
+<hibernate-mapping>
+    <class name="bean.Tfybd" table="TFYBD">
+        <composite-id name="id" class="bean.TfybdId">
+            <key-property name="typhNum" type="java.lang.Long">
+                <column name="TYPH_NUM" precision="10" scale="0" />
+            </key-property>
+            <key-property name="filename" type="string">
+                <column name="FILENAME" length="30" />
+            </key-property>
+            <key-property name="releaseNum" type="java.lang.Short">
+                <column name="RELEASE_NUM" precision="3" scale="0" />
+            </key-property>
+            <key-property name="dateTime" type="string">
+                <column name="DATE_TIME" length="20" />
+            </key-property>
+        </composite-id>
+    </class>
+</hibernate-mapping>

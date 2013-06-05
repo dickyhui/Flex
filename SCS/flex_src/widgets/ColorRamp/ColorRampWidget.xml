@@ -1,0 +1,64 @@
+<?xml version="1.0"?>
+<configuration>
+    <initialstate>closed</initialstate>
+
+	<colorramps>
+		<colorramp>
+			<type>GHT</type>
+			<path>widgets/ColorRamp/assets/GHT.png</path>
+		</colorramp>
+		<colorramp>
+			<type>HS</type>
+			<path>widgets/ColorRamp/assets/HS.png</path>
+		</colorramp>
+		<colorramp>
+			<type>Q2</type>
+			<path>widgets/ColorRamp/assets/Q2.png</path>
+		</colorramp>
+		<colorramp>
+			<type>QCLOUD</type>
+			<path>widgets/ColorRamp/assets/QCLOUD.png</path>
+		</colorramp>
+		<colorramp>
+			<type>QVAPOR</type>
+			<path>widgets/ColorRamp/assets/QVAPOR.png</path>
+		</colorramp>
+		<colorramp>
+			<type>RAINC</type>
+			<path>widgets/ColorRamp/assets/RAINC.png</path>
+		</colorramp>
+		<colorramp>
+			<type>RAINNC</type>
+			<path>widgets/ColorRamp/assets/RAINNC.png</path>
+		</colorramp>
+		<colorramp>
+			<type>RH</type>
+			<path>widgets/ColorRamp/assets/RH.png</path>
+		</colorramp>
+		<colorramp>
+			<type>SST</type>
+			<path>widgets/ColorRamp/assets/SST.png</path>
+		</colorramp>
+		<colorramp>
+			<type>T2</type>
+			<path>widgets/ColorRamp/assets/T2.png</path>
+		</colorramp>
+		<colorramp>
+			<type>TT</type>
+			<path>widgets/ColorRamp/assets/TT.png</path>
+		</colorramp>
+		<colorramp>
+			<type>W10Contour</type>
+			<path>widgets/ColorRamp/assets/W10Contour.png</path>
+		</colorramp>
+		<colorramp>
+			<type>typhoon</type>
+			<path>widgets/ColorRamp/assets/typhoon.png</path>
+		</colorramp>
+	</colorramps>
+</configuration>
+
+<!--
+    See Overview Map widget documentation at
+    http://links.esri.com/overviewmapwidget
+-->

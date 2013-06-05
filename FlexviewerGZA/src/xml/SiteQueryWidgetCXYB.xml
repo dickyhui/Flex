@@ -1,0 +1,28 @@
+<?xml version="1.0" ?>
+<configuration>
+	<itemE>
+		<name>CXYB</name>
+		<param>
+		    SPEED_1&DIR_1
+		    ,SPEED_2&DIR_2
+			,SPEED_3&DIR_3
+		</param>
+	</itemE>
+	<itemC>
+		<name>CXYB</name>
+		<param>
+		    第一层流速流向
+			,第二层流速流向
+			,第三层流速流向
+		</param>
+	</itemC>
+	<itemU>
+		<name>CXYB</name>
+		<param>
+		    m/s
+			,m/s
+			,m/s
+		</param>
+	</itemU>
+	<ServerIP> 202.121.180.148 </ServerIP>
+</configuration>

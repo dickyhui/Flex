@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE hibernate-configuration PUBLIC
+"-//Hibernate/Hibernate Configuration DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-configuration-3.0.dtd">
+<hibernate-configuration>
+    <session-factory>
+   		<mapping resource="bean/ScsUsers.hbm.xml" />
+    	<mapping resource="bean/Hqtqyb.hbm.xml" />
+    	<mapping resource="bean/Zfhy.hbm.xml" />
+    	<mapping resource="bean/BuoyLast2.hbm.xml" />
+    	<mapping resource="bean/TyphInfo.hbm.xml" />
+    	<mapping resource="bean/TyphMonitor.hbm.xml" />
+    	<mapping resource="bean/TyphForecast.hbm.xml" />
+    	<mapping resource="bean/Hqybd.hbm.xml" />
+    	<mapping resource="bean/Zfybd.hbm.xml" />
+    	<mapping resource="bean/Jcfwxx.hbm.xml" />
+    	<mapping resource="bean/Tfybd.hbm.xml" />
+    </session-factory>
+</hibernate-configuration>

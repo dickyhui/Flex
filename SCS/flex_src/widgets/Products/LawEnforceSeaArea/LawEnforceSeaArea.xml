@@ -1,0 +1,17 @@
+﻿<SeaAreaList>
+	<SeaArea area='钓鱼岛'>
+		<pt x='13742391' y='2965678' />
+	</SeaArea>
+	<SeaArea area='黄岩岛'>
+		<pt x='13119001' y='1708799' />
+	</SeaArea>
+	<SeaArea area='南沙'>
+		<pt x='12913060' y='1118889' />
+	</SeaArea>
+	<SeaArea area='西沙'>
+		<pt x='12467782' y='1804722' />
+	</SeaArea>
+	<SeaArea area='曾母暗沙'>
+		<pt x='12498952' y='442292' />
+	</SeaArea>
+</SeaAreaList>

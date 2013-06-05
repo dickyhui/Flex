@@ -1,0 +1,65 @@
+<?xml version="1.0" ?>
+<!--
+////////////////////////////////////////////////////////////////////////////////
+//
+// Read more about ArcGIS Viewer for Flex - http://links.esri.com/flexviewer
+//
+////////////////////////////////////////////////////////////////////////////////
+-->
+<configuration>
+    <title>印度洋海洋环境信息服务平台</title>
+    <subtitle></subtitle>
+    <logo>assets/images/cn.png</logo>
+    <style>
+<!--textColor,backgroundColor,rolloverColor,selectionColor,titleColor,applicationBackgroundColor-->
+        <colors>0xFFFFFF,0x282828,0x1767d4,0xdd6e1d,0xFFD700</colors>
+        <alpha>1</alpha>
+        <subtitlefont size="15" ></subtitlefont>
+        <titlefont size="21" ></titlefont>
+    </style>
+    <!-- replace the following url with your own geometryservice -->
+<!--     <geometryservice url="http://tasks.arcgisonline.com/ArcGIS/rest/services/Geometry/GeometryServer" /> -->
+
+    <!-- UI elements -->
+    <widget left="10"  top="60"    config="widgets/Navigation/NavigationWidget.xml" url="widgets/Navigation/NavigationWidget.swf"/>
+	<widget left="0"   top="0"     config="widgets/HeaderController/HeaderControllerWidget.xml" url="widgets/HeaderController/HeaderControllerWidget.swf"/>
+	<widget right="0"  top="54" 	config="widgets/Products/ProductsWidget.xml" url="widgets/Products/ProductsWidget.swf"/>
+    <widget left="0" bottom="60" 	config="widgets/ColorRamp/ColorRampWidget.xml" url="widgets/ColorRamp/ColorRampWidget.swf"/>
+    <widget left="3" bottom="3"    config="widgets/Coordinate/CoordinateWidget.xml" url="widgets/Coordinate/CoordinateWidget.swf"/>
+    
+    <headerContainer>
+    	<header label="台风" icon="assets/images/headerTFJB.png" config="none" url="typhoon" />
+	    <header label="Argo" icon="assets/images/headerGCSK.png" config="none" url="argoSite" />
+	    <header label="气象" icon="assets/images/headerJHYB.png" config="none" url="wind"/>
+	    <header label="海浪" icon="assets/images/headerWAVE.png" config="none" url="wave"/>
+	    <header label="海流" icon="assets/images/headerCURRENT.png" config="none" url="cu"/>
+	    <headerGroup label="潮汐潮流" icon="assets/images/headerTIDE.png">
+		    <header label="潮汐潮流" icon="assets/images/headerTIDE.png" config="none" url="tctd"/>
+		    <header label="再分析" icon="assets/images/headerTIDE.png" config="none" url="realys"/>
+	    </headerGroup>
+	    <headerGroup label="分析诊断" icon="assets/images/headerZFX.png">
+		    <header label="表层环流" icon="assets/images/headerZFX.png" config="none" url="bchl"/>
+		    <header label="混合层" icon="assets/images/headerZFX.png" config="none" url="hhc"/>
+		    <header label="障碍层" icon="assets/images/headerZFX.png" config="none" url="zac"/>
+		    <header label="中尺度涡" icon="assets/images/headerZFX.png" config="none" url="zcdw"/>
+	    </headerGroup>
+    </headerContainer>
+    
+    <map wraparound180="true" initialextent="3339584.723798207 -2273030.9269876885 13914936.349159198 3503549.843504376" fullextent="3339584.723798207 -2273030.9269876885 13914936.349159198 3503549.843504376" top="55" addarcgisbasemaps="false" esrilogovisible="false">
+      <basemaps>
+			<layer label="电子底图" type="customtiled"
+				url="http://202.121.180.56/TerrainWithLabel/{z}/{x}/{y}.jpg"
+				 visible="true"></layer>
+		</basemaps>
+    </map>
+
+    <!-- widgets organized into widget containers that manage close/open etc -->
+    <!-- supported layout property options: horizontal(default)|float|vertical|fix-->
+    <widgetcontainer layout="float">
+        <widget label="释用"
+                icon="assets/images/headerSZCP.png"
+                config="widgets/Station/StationWidget.xml"
+                url="widgets/Station/StationWidget.swf"/>
+    </widgetcontainer>
+
+</configuration>

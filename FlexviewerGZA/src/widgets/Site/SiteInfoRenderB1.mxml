@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+/**
+*
+* Copyright (c) 2012 GIS KEY LAB ZJU
+*
+* BUOY1 infowindow
+*
+*/
+-->
+<viewer:BaseWidget xmlns:fx="http://ns.adobe.com/mxml/2009"
+				   xmlns:s="library://ns.adobe.com/flex/spark"
+				   xmlns:mx="library://ns.adobe.com/flex/mx"
+				   xmlns:viewer="com.esri.viewer.*"
+				   xmlns:esri="http://www.esri.com/2008/ags"
+				   dataChange="init(event)"
+				   paddingBottom="5"
+				   paddingLeft="5" paddingRight="5" showEffect="mx.effects.Fade">
+	<fx:Style>
+		@namespace s "library://ns.adobe.com/flex/spark";
+		@namespace mx "library://ns.adobe.com/flex/mx";
+		@namespace esri "http://www.esri.com/2008/ags";
+		@namespace viewer "com.esri.viewer.*";
+		
+		.lb{			
+			color:#a2a2a2;
+		}
+	</fx:Style>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Map;
+			import com.esri.viewer.AppEvent;
+			import com.esri.viewer.ViewerContainer;
+			import com.esri.viewer.WidgetStates;
+			
+			[Bindable]
+			private var site:Object;
+			
+			private const QUERY_BTN_CLICKED:String = "query_btn_clicked";
+			
+			private function init(evt:Event):void
+			{
+				site = data;
+			}
+			
+			private function query():void
+			{
+				ViewerContainer.dispatchEvent(new AppEvent(AppEvent.WIDGET_RUN, ["站点分析B1",site]));
+				(this.owner as Map).infoWindow.hide();
+			}
+		]]>
+	</fx:Script>
+	<s:VGroup id="grouponDealInfoVBox"
+			  height="100%" 
+			  width="80%" horizontalAlign="left">
+		<mx:Button icon="@Embed('assets/images/wave.png')" width="120" height="14" toolTip="时间序列统计"  click="query()"/>
+		<!--<mx:Image width="200" height="18" source="assets/images/wave.png" buttonMode="true" useHandCursor="true" click="query()"/>-->
+		<s:Label   text="最大波高:{site.zdbg}m"  color="#F7F8B2"   /> 
+		<s:Label   text="最大周期:{site.zdbzq}s"  color="#F7F8B2"  /> 
+		<s:Label   text="平均波高:{site.pjbg}m"  color="#F7F8B2"   /> 
+		<s:Label   text="平均周期:{site.pjzq}s"  color="#F7F8B2"    /> 
+		<s:Label   text="波向:{site.bx}°"  color="#F7F8B2"  /> 
+		<s:Label   text="时间:{site.time}"  color="#F7F8B2"  /> 
+	</s:VGroup>
+</viewer:BaseWidget>

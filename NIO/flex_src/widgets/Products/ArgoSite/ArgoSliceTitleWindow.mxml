@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+////////////////////////////////////////////////////////////////////////////////
+//
+// Copyright (c) 2012 GIS KEY LAB ZJU
+//
+// 
+//
+////////////////////////////////////////////////////////////////////////////////
+-->
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+				   xmlns:s="library://ns.adobe.com/flex/spark"
+				   xmlns:mx="library://ns.adobe.com/flex/mx"
+				   xmlns:esri="http://www.esri.com/2008/ags"
+				   xmlns:viewer="com.esri.viewer.*" 
+				   width="650" height="550"
+				   xmlns:CommonUtil="widgets.CommonUtil.*" >
+	<fx:Style>
+		@namespace s "library://ns.adobe.com/flex/spark";
+		@namespace mx "library://ns.adobe.com/flex/mx";
+		@namespace esri "http://www.esri.com/2008/ags";
+		@namespace viewer "com.esri.viewer.*";
+		
+		.lb{			
+			color:#a2a2a2;
+		}
+	</fx:Style>
+
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Graphic;
+			import com.esri.ags.geometry.MapPoint;
+			import com.esri.ags.geometry.Polyline;
+			import com.esri.ags.layers.GraphicsLayer;
+			import com.esri.viewer.AppEvent;
+			import com.esri.viewer.ViewerContainer;
+			import com.esri.viewer.WidgetStates;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.Image;
+			import mx.core.FlexGlobals;
+			import mx.events.ListEvent;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.utils.StringUtil;
+			
+			import spark.components.supportClasses.ItemRenderer;
+			import spark.events.IndexChangeEvent;
+			
+			import widgets.Products.ProductsWidgetXml;
+			[Bindable]
+			private var _sliceImageSource:String="";
+			[Bindable]
+			private var _IP:String;
+			private var _doJustOnce:Boolean = true;
+			private var _siteName:String;
+			[Embed(source="assets/images/Error.png")]
+			private var errorLogo:Class;
+			
+			[Bindable]
+			public var cycleNum:ArrayCollection = new ArrayCollection();
+			
+			private var _platNum:String;
+			public  function set platNum(value:String):void
+			{
+				_platNum = value;
+				init(value);
+			}
+			public function get platNum():String
+			{
+				return _platNum;
+			}
+		
+			private function init(value:String):void
+			{
+				argoProfile.getArgoCycleNum(value);
+			}
+			
+			
+			private function SetImageSliceSource(siteName:String):void
+			{
+			}
+			
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				var sliceCycle:String = ddl_SliceCycNum.selectedItem;
+				var sliceType:String = ddl_Slice.selectedItem;
+				var sliceName:String = "http://" + ProductsWidgetXml.serverIP + "/nio_slice/" + platNum + "/"
+					+ platNum + "_" + sliceCycle + "_" + sliceType + ".png"
+				SliceImage.load(sliceName);
+			}
+			
+			private function Site_getArgoCycleNum_onResult(evt:ResultEvent):void
+			{
+				cycleNum = evt.result as ArrayCollection;
+				ddl_SliceCycNum.selectedIndex = 0;
+				if(cycleNum.length<1)
+				{
+					Alert.show("数据库中不存在该浮标的剖面周期信息！", "请确认",4, null, null);
+					return;
+				}
+			}
+			private function Site_getArgoCycleNum_onFault(evt:FaultEvent):void
+			{
+				Alert.show("数据库连接出错，请重试..." + evt.message, "出错了！", 4, null, null);
+				return;
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<s:RemoteObject id="argoProfile" destination="argoProfileHome">
+			<s:method name="getArgoCycleNum" result="Site_getArgoCycleNum_onResult(event)" fault="Site_getArgoCycleNum_onFault(event)"/>
+		</s:RemoteObject>
+	</fx:Declarations>
+		<s:VGroup id="group" width="100%" height="100%" verticalAlign="middle" horizontalAlign="center">
+			<s:HGroup  verticalAlign="middle" horizontalAlign="center">
+				<s:Label text="剖面周期:" color="#A8F9B5" />
+				<s:DropDownList id="ddl_SliceCycNum" dataProvider="{cycleNum}" selectedIndex="0" />
+				<s:Label text="剖面类型:" color="#A8F9B5" />
+				<s:DropDownList id="ddl_Slice" dataProvider="{new ArrayCollection(['PS','TS','PT'])}" selectedIndex="0" />
+				<s:Button label="显示" color="#A8F9B5"  width="100" click="button1_clickHandler(event)" />
+			</s:HGroup>
+			<mx:Image id="SliceImage" width="601" height="450" />
+		</s:VGroup>
+</s:TitleWindow>

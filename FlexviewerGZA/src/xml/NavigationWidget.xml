@@ -1,0 +1,17 @@
+<?xml version="1.0" ?>
+<configuration>
+    <panwheel visible="true" fullexticon="assets/images/i_globe.png"  />
+    <prevextbutton visible="true"/>
+    <nextextbutton visible="true"/>
+    <panbutton visible="true" icon="assets/images/i_pan.png" />
+    <zoominbutton visible="true" icon="assets/images/i_zoomin.png" />
+    <zoomoutbutton visible="true" icon="assets/images/i_zoomout.png" />
+    <extent xmin="11500000" ymin="2000000" xmax="14000000" ymax="3000000" enabled="true"></extent>
+    <initialextent centerX="12660365.68" centerY="2538300" level="4" />
+    <sitevisiblelevel level="3" enabled="true"/>
+</configuration>
+
+<!--
+    See Navigation widget documentation at
+    http://links.esri.com/navigationwidget
+-->

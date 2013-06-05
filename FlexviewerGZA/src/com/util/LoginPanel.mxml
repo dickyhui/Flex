@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 creationComplete="group1_creationCompleteHandler(event)"
+		 width="100%" height="100%" >
+	<fx:Metadata>
+		[Event(name="validLogin",type="flash.events.Event")]
+	</fx:Metadata>
+	<fx:Declarations>
+		<mx:Sequence id="onEnterRollOver">
+			<mx:children>
+				<mx:Glow  
+					duration="500"
+					alphaFrom="1.0"
+					alphaTo="0.5"
+					blurXFrom="0.0"
+					blurXTo="7.0"
+					blurYFrom="0.0"
+					blurYTo="7.0"
+					color="0x8bd3f9"/>				
+			</mx:children>
+		</mx:Sequence>
+		<mx:Sequence id="onEnterRollOut">
+			<mx:children>
+				<mx:Glow 
+					duration="500"
+					alphaFrom="1"
+					alphaTo="0"
+					blurXFrom="7.0"
+					blurXTo="0.0"
+					blurYFrom="7.0"
+					blurYTo="0.0"
+					color="0x8bd3f9"/>
+			</mx:children>
+		</mx:Sequence>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import flash.net.navigateToURL;
+			
+			import mx.controls.Alert;
+			import mx.core.FlexGlobals;
+			import mx.events.FlexEvent;
+			import mx.events.MoveEvent;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.http.HTTPService;
+			[Bindable]
+			private var _userName:String = "";
+			private var _password:String="";
+			[Bindable]
+			[Embed(source="assets/images/Error.png")]
+			private var errorLogo:Class;
+			[Bindable]
+			[Embed(source="assets/images/login-form.png")]
+			private var login_form:Class;
+			[Bindable]
+			[Embed(source="assets/images/login-enter.png")]
+			private var login_enter:Class;
+			
+			protected function group1_creationCompleteHandler(event:FlexEvent):void
+			{
+				var configService:HTTPService = new HTTPService();
+				configService.url = "xml/Login.xml" + GlobalProperty.version;
+				configService.resultFormat = HTTPService.RESULT_FORMAT_E4X;
+				
+				configService.addEventListener(ResultEvent.RESULT, configService_resultHandler);
+				configService.addEventListener(FaultEvent.FAULT, configService_faultHandler);
+				configService.send();
+				
+				//设置焦点，这种方法对WebKit没有用
+				//ExternalInterface.call("document.insertScript = function () {alert('flex 调用 js 成功' + document.getElementById('${application}'));}");
+				ExternalInterface.call("document.insertScript=function(){document.getElementById('index').focus();}");
+				//showStateUserLogin();
+			}
+			private function configService_faultHandler(event:mx.rpc.events.FaultEvent):void
+			{
+				Alert.show("反正是错了！", "出错了！", 4, null, null, errorLogo);
+			}
+			private function configService_resultHandler(event:ResultEvent):void
+			{
+				try
+				{
+					var configXML:XML = event.result as XML;
+					_userName = configXML.username||"1";
+					_password = configXML.password||"1";
+				}
+				catch(e:Error)
+				{
+					Alert.show("反正是错了！", "出错了！", 4, null, null, errorLogo);
+				}
+				showStateUserLogin();
+			}
+			
+			private function showStateUserLogin():void
+			{
+				try
+				{
+					if(this.focusManager != null)
+					{
+						this.focusManager.setFocus(this.ti_UserName);
+					}
+				}
+				catch(e:Error)
+				{
+					
+				}
+			}
+			
+			private function checkValid(event:Event):void
+			{
+				if(ti_UserName.text == "")
+				{
+					Alert.show("请输入用户名！", "登录失败！", 4, null, null, errorLogo);
+					return;
+				}
+				
+				if(ti_UserName.text == _userName && ti_Password.text== _password)
+				{
+					var loginEvent:Event=new Event("validLogin", true);
+					this.dispatchEvent(loginEvent);
+				}
+				else 
+				{
+					Alert.show("用户名或密码出错，请重试！", "登录失败！", 4, null, null, errorLogo);
+					showStateUserLogin();
+				}
+			}
+			
+			private function listenEnter(event:KeyboardEvent):void
+			{
+				if(13 == event.keyCode)
+				{
+					image_login.removeEventListener(KeyboardEvent.KEY_DOWN, listenEnter,true);
+					image_login.removeEventListener(KeyboardEvent.KEY_DOWN, listenEnter,false);
+					checkValid(null);
+				}
+			}
+			
+			private function btn_Login_focusInHandler(event:FocusEvent):void
+			{
+				image_login.addEventListener(KeyboardEvent.KEY_DOWN, listenEnter, false, 0, false);
+			}
+			
+			
+			private function btn_Login_focusOutHandler(event:FocusEvent):void
+			{
+				image_login.removeEventListener(KeyboardEvent.KEY_DOWN, listenEnter,true);
+				image_login.removeEventListener(KeyboardEvent.KEY_DOWN, listenEnter,false);
+			}
+		]]>
+	</fx:Script>
+	<s:BorderContainer backgroundColor="0x89898B" width="100%" height="100%">
+		<s:backgroundFill> 
+			<s:RadialGradient>
+				<s:entries>
+					<s:GradientEntry color="0xa0a0a0" />
+					<s:GradientEntry color="0x707070" />
+				</s:entries>
+			</s:RadialGradient>
+		</s:backgroundFill> 
+		<s:VGroup id="userLogin" width="100%" height="100%" verticalAlign="middle" horizontalAlign="center">
+			<s:Group width="600" height="300"> 
+				<s:VGroup width="100%" height="100%" verticalAlign="middle" horizontalAlign="center">
+					<mx:Image source="{login_form}" width="600" height="300"/>
+				</s:VGroup>
+				
+				<s:VGroup width="100%" height="100%"
+						  verticalAlign="middle" horizontalAlign="center">
+					<mx:Spacer height="25" />
+					<s:HGroup width="100%" height="60" 
+							  horizontalAlign="left" verticalAlign="middle">
+						<mx:Spacer width="72" />
+						<s:TextInput id="ti_UserName" width="161" height="26"  alpha="1" borderAlpha="0"/>
+						<mx:Spacer width="16" />
+						<s:TextInput id="ti_Password" width="161" height="26"  alpha="1" borderAlpha="0"
+									 enter="checkValid(event)"
+									 displayAsPassword="true"/>
+					</s:HGroup>	
+				</s:VGroup>
+				<s:HGroup  width="100%" height="100%" 
+						   horizontalAlign="center" verticalAlign="middle">
+					<mx:Spacer width="402" />
+					<s:VGroup  horizontalAlign="center" verticalAlign="middle">
+						<mx:Image id="image_login" width="91" height="220" useHandCursor="true" source="{login_enter}"
+								  buttonMode="true"
+								  rollOverEffect="onEnterRollOver"
+								  rollOutEffect="onEnterRollOut"
+								  click="checkValid(event)"
+								  focusIn="btn_Login_focusInHandler(event)"
+								  focusOut="btn_Login_focusOutHandler(event)"/>
+						<mx:Spacer height="16" />
+					</s:VGroup>
+				</s:HGroup>
+			</s:Group>
+		</s:VGroup>
+	</s:BorderContainer>
+</s:Group>

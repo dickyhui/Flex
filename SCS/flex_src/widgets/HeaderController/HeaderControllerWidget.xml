@@ -1,0 +1,26 @@
+<?xml version="1.0" ?>
+<configuration>
+    <about>
+        <width>300</width>
+        <height>300</height>
+        <content>
+            <![CDATA[
+                <p align='center' width='139' height='131'>
+                    <img src='assets/images/globe.png'/>
+                    <br/>
+                    <br/>
+                    <font size="+2"><b><a href="http://resourcesbeta.arcgis.com/en/communities/flex-viewer/" target='_blank'>ArcGIS Viewer for Flex</a></b></font>
+                </p>
+           ]]>
+        </content>
+    </about>
+</configuration>
+
+<!--
+    For valid HTML tags in Flash applications (that can be used for 'content'), see
+    http://help.adobe.com/en_US/FlashPlatform/reference/actionscript/3/flashx/textLayout/conversion/TextConverter.html#TEXT_FIELD_HTML_FORMAT
+-->
+<!--
+    See HeaderController widget tag reference at
+    http://links.esri.com/headercontrollerwidget
+-->

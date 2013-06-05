@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<!-- Generated 2013-1-29 16:25:24 by Hibernate Tools 3.4.0.CR1 -->
+<hibernate-mapping>
+    <class name="bean.Zfybd" table="ZFYBD">
+        <composite-id name="id" class="bean.ZfybdId">
+            <key-property name="year" type="string">
+                <column name="YEAR" length="20" />
+            </key-property>
+            <key-property name="month" type="string">
+                <column name="MONTH" length="20" />
+            </key-property>
+            <key-property name="day" type="string">
+                <column name="DAY" length="20" />
+            </key-property>
+            <key-property name="filename" type="string">
+                <column name="FILENAME" length="20" />
+            </key-property>
+            <key-property name="hour" type="string">
+                <column name="HOUR" length="20" />
+            </key-property>
+        </composite-id>
+    </class>
+</hibernate-mapping>

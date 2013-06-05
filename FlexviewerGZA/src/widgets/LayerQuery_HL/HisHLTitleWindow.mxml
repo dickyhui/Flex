@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   xmlns:supportClasses="com.esri.ags.skins.supportClasses.*" 
+			   width="300" height="150"
+			   creationComplete="titlewindow1_creationCompleteHandler(event)">
+	<s:layout>
+		<supportClasses:AttachmentLayout/>
+	</s:layout>
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			[Bindable]
+			public var hisorder:ArrayCollection = new ArrayCollection();//历史预报时次
+			public var hisHL:String = "";//历史预报数据路径
+			
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				var ftArr:Array = hisHLDate.text.split(" ")[0].split("/");
+				var temp:String = hisHL;
+				var type:String = hisHLType.selectedItem.toString() == "周期" ? "xiaotm":"xiao";
+				temp = temp.replace("yyyy",ftArr[0]).replace("MM",ftArr[1]).replace("dd",ftArr[2])
+					.replace("type",type).replace("xx",hisHLTime.selectedItem.toString());
+				navigateToURL(new URLRequest(encodeURI(temp)),'_blank');
+			}
+			
+			protected function titlewindow1_creationCompleteHandler(event:FlexEvent):void
+			{
+				hisHLTime.selectedIndex = -1;
+				hisHLTime.selectedIndex = 0;
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:VGroup width="100%" height="100%" verticalAlign="middle" horizontalAlign="center">
+		<s:HGroup width="100%"  verticalAlign="middle" horizontalAlign="center">
+			<s:Label text="起报时间:" color="#A8F9B5" />
+			<mx:DateField id="hisHLDate" width="160" fontSize="13" selectedDate="{new Date()}" formatString="YYYY/MM/DD 20:00:00" editable="false"/>
+		</s:HGroup>
+		<s:HGroup width="100%"  verticalAlign="middle" horizontalAlign="center">
+			<s:Label text="预报时次:"  color="#A8F9B5" />
+			<s:DropDownList id="hisHLTime" width="100" fontSize="13" dataProvider="{hisorder}" selectedIndex="0" />
+		</s:HGroup>
+		<s:HGroup width="100%"  verticalAlign="middle" horizontalAlign="center">
+			<s:Label text="预报参数:"  color="#A8F9B5" />
+			<s:DropDownList id="hisHLType" width="100" fontSize="13"  dataProvider="{new ArrayCollection(new Array('周期','浪高浪向'))}" selectedIndex="0" />
+		</s:HGroup>
+		<s:Button label="显示" color="#A8F9B5"  width="100" click="button1_clickHandler(event)" />
+	</s:VGroup>
+</s:TitleWindow>

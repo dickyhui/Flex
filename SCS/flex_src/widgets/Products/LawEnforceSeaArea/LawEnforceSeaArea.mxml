@@ -1,0 +1,433 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 creationComplete="group1_creationCompleteHandler(event)"
+		 width="100%" height="100%" >
+	<fx:Declarations>
+		<s:RemoteObject id="lawEnforceHome" destination="lawEnforceHome" channelSet="{ new ChannelSet(['my-amf','my-polling-amf'])}" >
+			<s:method name="getLawEnforce"  result="getLawEnforce_resultHandler(event)" fault="getLawEnforce_faultHandler(event)" />
+		</s:RemoteObject>
+	</fx:Declarations>
+	<fx:Metadata>
+		[Event(name="GoBacktoMain",type="flash.events.Event")]
+	</fx:Metadata>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Graphic;
+			import com.esri.ags.Map;
+			import com.esri.ags.geometry.MapPoint;
+			import com.esri.ags.layers.GraphicsLayer;
+			import com.esri.ags.symbols.PictureMarkerSymbol;
+			import com.esri.ags.symbols.SimpleMarkerSymbol;
+			import com.esri.ags.symbols.TextSymbol;
+			import com.esri.ags.utils.WebMercatorUtil;
+			import com.esri.viewer.AppEvent;
+			import com.util.GlobalProperty;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.http.HTTPService;
+			[Bindable]
+			public var map:Map;
+			private var lawEnforceLayer:GraphicsLayer = new GraphicsLayer();
+			
+			[Embed(source="assets/images/Error.png")]
+			private var errorLogo:Class;
+			protected function goBack_clickHandler(event:MouseEvent):void
+			{
+				//lawEnforceLayer.visible = false;
+				
+				var goBacktoMain:Event=new Event("GoBacktoMain", true);
+				this.dispatchEvent(goBacktoMain);
+			}
+			protected function group1_creationCompleteHandler(event:Event):void
+			{
+				AppEvent.addListener(AppEvent.MAPINITIALIZED,MapInitializedListener);
+			}
+			protected function MapInitializedListener(event:AppEvent):void
+			{
+				this.map = event.data as Map;
+				changeFunction();
+			}
+			//从main状态切换过来执行的函数
+			private var once:Boolean=true;
+			public function changeFunction():void
+			{
+				//lawEnforceLayer.visible = true;
+				setMapExtent();
+				//只执行一次
+				if(once)
+				{
+					once=false;
+					
+					lawEnforceLayer.id = "lawEnforceLayer";
+					//lawEnforceLayer.visible = false;
+					map.addLayer(lawEnforceLayer);
+					//请求海区xml数据
+					var httpServices:HTTPService = new HTTPService();
+					httpServices.url = "widgets/Products/LawEnforceSeaArea/LawEnforceSeaArea.xml" + GlobalProperty.version;
+					httpServices.resultFormat = HTTPService.RESULT_FORMAT_E4X;
+					//httpServices.useProxy = false;
+					httpServices.addEventListener(ResultEvent.RESULT,httpServicesResultHandler);
+					httpServices.addEventListener(FaultEvent.FAULT,httpServicesFAULTHandler);
+					httpServices.send();
+				}
+			}
+			//HTTPService回调，获取数据
+			protected function httpServicesResultHandler(event:ResultEvent):void
+			{
+				if(event.result is XML)
+				{
+					var xml:XML = event.result as XML;
+					
+					for each(var seaArea:XML in xml.SeaArea)
+					{
+						//图片
+						var graphic:Graphic = new Graphic();
+						var pt:MapPoint = new MapPoint(seaArea.pt.@x,seaArea.pt.@y);
+						graphic.geometry = pt;
+						graphic.attributes = seaArea.@area;
+						graphic.toolTip = "点击显示" + seaArea.@area + "天气";
+						var pointSymbol:PictureMarkerSymbol = new PictureMarkerSymbol("assets/images/flag_red.png",24,24);
+						graphic.symbol = pointSymbol;
+						graphic.addEventListener(MouseEvent.MOUSE_OVER,graphicMouseOverListener);
+						graphic.addEventListener(MouseEvent.MOUSE_OUT,graphicMouseOutListener);
+						graphic.addEventListener(MouseEvent.CLICK,graphicMouseClickListener);
+						lawEnforceLayer.add(graphic);
+						//文字
+						var graphicText:Graphic = new Graphic();
+						graphicText.geometry = pt;
+						var textformat:TextFormat = new TextFormat("Microsoft Yahei",14,null,false);
+						var textSymbol:TextSymbol = new TextSymbol(seaArea.@area,null,0xff3030,1,false,0,false,16777215,"middle",0,0,-20,textformat);
+						graphicText.symbol = textSymbol;
+						lawEnforceLayer.add(graphicText);
+					}
+					lawEnforceLayer.refresh();
+				}
+				
+			}
+			
+			protected function httpServicesFAULTHandler(event:FaultEvent):void
+			{
+				Alert.show("加载执法海域数据出错！\n" + event.fault.faultString);
+			}
+			protected function graphicMouseOverListener(event:MouseEvent):void
+			{
+				((event.currentTarget as Graphic).symbol as PictureMarkerSymbol).width=28;
+				((event.currentTarget as Graphic).symbol as PictureMarkerSymbol).height=28;
+				lawEnforceLayer.refresh();
+			}
+			
+			protected function graphicMouseOutListener(event:MouseEvent):void
+			{
+				((event.currentTarget as Graphic).symbol as PictureMarkerSymbol).width=24;
+				((event.currentTarget as Graphic).symbol as PictureMarkerSymbol).height=24;
+				lawEnforceLayer.refresh();
+			}
+			
+			protected function graphicMouseClickListener(event:MouseEvent):void
+			{
+				//切换到产品视图
+				//AppEvent.dispatch(AppEvent.CHANGEPRODUCTVIEW,this);
+				
+				var lawEnforce:String = String((event.currentTarget as Graphic).attributes);
+				if(lawEnforce != "" && lawEnforce != null)
+				{
+					lawEnforce_title.text = lawEnforce;
+					lawEnforceHome.getLawEnforce(lawEnforce);
+				}
+			}
+			public function cb_showLawEnforce_changeHandler(event:Event):void
+			{
+				lawEnforceLayer.visible = cb_showLawEnforce.selected;
+			}
+			protected function getLawEnforce_resultHandler(event:ResultEvent):void
+			{
+				//Alert.show("执法海域","TEST", 4, null, null,errorLogo);
+				if(event.result != null)
+				{
+					var result:ArrayCollection = event.result as ArrayCollection;
+					for(var i:Number=0;i<3;i++)
+					{
+						var zfhy:Zfhy = result[i] as Zfhy;
+						var date:String = (zfhy.qbsj.month+1) + "-" + (zfhy.qbsj.date + zfhy.id.ybtc - 1) 
+							+ ' ' + zfhy.qbsj.hours + '时'
+							+ ' 至 '
+							+ (zfhy.qbsj.month+1) + "-" + (zfhy.qbsj.date + zfhy.id.ybtc)  
+							+ ' ' + zfhy.qbsj.hours + '时';
+						(this["lawEnforce_date_" + (i+1)] as Label).text = date;
+						(this["lawEnforce_tqqk_" + (i+1)] as Label).text = zfhy.tqqk;
+						(this["lawEnforce_fx_" + (i+1)] as Label).text = zfhy.fx;
+						
+						var color:Number = getColor("风",zfhy.fs);
+						(this["lawEnforce_fs_" + (i+1)] as Label).text = zfhy.fs;
+						(this["lawEnforce_fs_" + (i+1)] as Label).visible = color==0xffffff;
+						(this["lawEnforce_fs_" + (i+1) + "_R"] as Label).text = zfhy.fs;
+						(this["lawEnforce_fs_" + (i+1) + "_R"] as Label).visible = color==0xff0000;
+						
+						(this["lawEnforce_scfw_" + (i+1)] as Label).text = zfhy.scfw;
+						
+						color = getColor("浪",zfhy.fl);
+						(this["lawEnforce_fl_" + (i+1)] as Label).text = zfhy.fl;
+						(this["lawEnforce_fl_" + (i+1)] as Label).visible = color==0xffffff;
+						(this["lawEnforce_fl_" + (i+1) + "_R"] as Label).text = zfhy.fl;
+						(this["lawEnforce_fl_" + (i+1) + "_R"] as Label).visible = color==0xff0000;
+						
+						color = getColor("浪",zfhy.yl);
+						(this["lawEnforce_yl_" + (i+1)] as Label).text = zfhy.yl;
+						(this["lawEnforce_yl_" + (i+1)] as Label).visible = color==0xffffff;
+						(this["lawEnforce_yl_" + (i+1) + "_R"] as Label).text = zfhy.yl;
+						(this["lawEnforce_yl_" + (i+1) + "_R"] as Label).visible = color==0xff0000;
+					}
+				}
+			}
+			//根据数值返回颜色，风七级以上为红色，否则为黑色，浪3m以上为红色，否则为黑色
+			protected function getColor(type:String,value:String):Number
+			{
+				var color:Number = 0xffffff;
+				if(value != null)
+				{
+					if(type == "风")
+					{
+						//包含7及以上的数字
+						var regExp:RegExp = /[7-9]|([1-9][0-9])/;
+						if(value.search(regExp) != -1)
+						{
+							color = 0xff0000;
+						}
+					}
+					else if(type == "浪")
+					{
+						//包含3.及以上数字
+						var regExp:RegExp = /([3-9]|([1-9][0-9]))\./;
+						if(value.search(regExp) != -1)
+						{
+							color = 0xff0000;
+						}
+					}
+				}
+				return color;
+			}
+			protected function getLawEnforce_faultHandler(event:FaultEvent):void
+			{
+				Alert.show("执法海域数据无法加载","服务器异常", 4, null, null,errorLogo);
+			}
+			
+			//设置地图视图范围
+			protected function setMapExtent():void
+			{
+				map.level = 1;
+				map.centerAt(new MapPoint(13914936,1804722));
+			}
+		]]>
+	</fx:Script>
+	<s:BorderContainer top="5" width="230" left="10" height="35" borderWeight="2"
+					   styleName="BorderContainer" >
+		<s:Label x="10" y="10"  styleName="LabelTitle" text="执法海域" />
+		<!--<s:Image x="145" y="4" source="assets/images/arrow-previous.png" />-->
+		<mx:LinkButton id="goBack" label="返回" styleName="LabelTitle" 
+					   y="3" right="10" click="goBack_clickHandler(event)" />
+	</s:BorderContainer>
+	<s:BorderContainer top="45"  width="230" left="10" height="30"
+					   styleName="BorderContainer" >
+		<s:CheckBox id="cb_showLawEnforce" x="60" y="2" label="显示执法海域" selected="true" change="cb_showLawEnforce_changeHandler(event)" />
+	</s:BorderContainer>
+	<mx:Grid left="10" top="80" width="230"  verticalScrollPolicy="auto">
+		<mx:GridRow width="100%" styleName="GridItem2">
+			<mx:GridItem colSpan="2" width="100%">
+				<s:Label id="lawEnforce_title" />
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem colSpan="2">
+				<s:Label id="lawEnforce_date_1" />
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem width="30%" styleName="GridItem2">
+				<s:Label text="天气情况" />
+			</mx:GridItem>
+			<mx:GridItem width="71%">
+				<s:Label id="lawEnforce_tqqk_1" />
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="风向" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Label id="lawEnforce_fx_1" />
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="风速(级)" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Group>
+					<s:Group>
+						<s:Label id="lawEnforce_fs_1" />
+						<s:Label id="lawEnforce_fs_1_R" color="0xff0000" />
+					</s:Group>
+				</s:Group>
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%">
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="视程范围(公里)" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Label id="lawEnforce_scfw_1" />
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="风浪(米)" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Group>
+					<s:Label id="lawEnforce_fl_1" />
+					<s:Label id="lawEnforce_fl_1_R" color="0xff0000" />
+				</s:Group>
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="涌浪(米)" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Group>
+					<s:Label id="lawEnforce_yl_1" />
+					<s:Label id="lawEnforce_yl_1_R" color="0xff0000" />
+				</s:Group>
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem colSpan="2">
+				<s:Label id="lawEnforce_date_2" />
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="天气情况" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Label id="lawEnforce_tqqk_2" />
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="风向" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Label id="lawEnforce_fx_2" />
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="风速(级)" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Group>
+					<s:Label id="lawEnforce_fs_2" />
+					<s:Label id="lawEnforce_fs_2_R" color="0xff0000" />
+				</s:Group>
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="视程范围(公里)" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Label id="lawEnforce_scfw_2" />
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="风浪(米)" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Group>
+					<s:Label id="lawEnforce_fl_2" />
+					<s:Label id="lawEnforce_fl_2_R" color="0xff0000" />
+				</s:Group>
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="涌浪(米)" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Group>
+					<s:Label id="lawEnforce_yl_2" />
+					<s:Label id="lawEnforce_yl_2_R" color="0xff0000" />
+				</s:Group>
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem colSpan="2">
+				<s:Label id="lawEnforce_date_3" />
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="天气情况" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Label id="lawEnforce_tqqk_3" />
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="风向" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Label id="lawEnforce_fx_3" />
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="风速(级)" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Group>
+					<s:Label id="lawEnforce_fs_3" />
+					<s:Label id="lawEnforce_fs_3_R" color="0xff0000" />
+				</s:Group>
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="视程范围(公里)" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Label id="lawEnforce_scfw_3" />
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="风浪(米)" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Group>
+					<s:Label id="lawEnforce_fl_3" />
+					<s:Label id="lawEnforce_fl_3_R" color="0xff0000" />
+				</s:Group>
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="涌浪(米)" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Group>
+					<s:Label id="lawEnforce_yl_3" />
+					<s:Label id="lawEnforce_yl_3_R" color="0xff0000" />
+				</s:Group>
+			</mx:GridItem>
+		</mx:GridRow>
+	</mx:Grid>
+</s:Group>

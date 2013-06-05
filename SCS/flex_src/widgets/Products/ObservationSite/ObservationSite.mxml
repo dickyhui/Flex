@@ -1,0 +1,307 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 creationComplete="group1_creationCompleteHandler(event)"
+		 width="100%" height="100%" >
+	<fx:Declarations>
+		<s:RemoteObject id="buoyHome" destination="buoyHome" channelSet="{ new ChannelSet(['my-amf','my-polling-amf'])}" >
+			<s:method name="getLatest"  result="getLatest_resultHandler(event)" fault="getLatest_faultHandler(event)" />
+		</s:RemoteObject>
+	</fx:Declarations>
+	<fx:Metadata>
+		[Event(name="GoBacktoMain",type="flash.events.Event")]
+	</fx:Metadata>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Graphic;
+			import com.esri.ags.Map;
+			import com.esri.ags.events.ExtentEvent;
+			import com.esri.ags.geometry.MapPoint;
+			import com.esri.ags.layers.GraphicsLayer;
+			import com.esri.ags.symbols.PictureMarkerSymbol;
+			import com.esri.ags.symbols.SimpleMarkerSymbol;
+			import com.esri.ags.symbols.TextSymbol;
+			import com.esri.ags.utils.WebMercatorUtil;
+			import com.esri.viewer.AppEvent;
+			import com.util.GlobalProperty;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.http.HTTPService;
+			[Bindable]
+			public var map:Map;
+			private var observationSiteLayer:GraphicsLayer = new GraphicsLayer();
+			[Embed(source="assets/images/Error.png")]
+			private var errorLogo:Class;
+			private var currentSiteName:String;
+			
+			protected function goBack_clickHandler(event:MouseEvent):void
+			{
+				setLayerVisibility(false);
+				
+				var goBacktoMain:Event=new Event("GoBacktoMain", true);
+				this.dispatchEvent(goBacktoMain);
+			}
+			public function setLayerVisibility(bool:Boolean):void
+			{
+				observationSiteLayer.visible = bool;
+				changeFromMain = bool;
+			}
+			protected function group1_creationCompleteHandler(event:Event):void
+			{
+				AppEvent.addListener(AppEvent.MAPINITIALIZED,MapInitializedListener);
+			}
+			
+			protected function MapInitializedListener(event:AppEvent):void
+			{
+				this.map = event.data as Map;
+				map.addEventListener(ExtentEvent.EXTENT_CHANGE,onExtent_Change);
+			}
+			
+			//从main状态切换过来执行的函数
+			private var once:Boolean=true;
+			private var changeFromMain:Boolean = false;
+			public function changeFunction():void
+			{
+				setLayerVisibility(true);
+				setMapExtent();
+				//只执行一次
+				if(once)
+				{
+					once=false;
+					
+					observationSiteLayer.id = "observationSiteLayer";
+					//observationSiteLayer.visible = false;
+					map.addLayer(observationSiteLayer);
+					//请求海区xml数据
+					var httpServices:HTTPService = new HTTPService();
+					httpServices.url = "widgets/Products/ObservationSite/ObservationSite.xml" + GlobalProperty.version;
+					httpServices.resultFormat = HTTPService.RESULT_FORMAT_E4X;
+					//httpServices.useProxy = false;
+					httpServices.addEventListener(ResultEvent.RESULT,httpServicesResultHandler);
+					httpServices.addEventListener(FaultEvent.FAULT,httpServicesFAULTHandler);
+					httpServices.send();
+				}
+			}
+			
+			private function onExtent_Change(e:ExtentEvent):void
+			{
+				if(map.level>2 && changeFromMain)
+				{
+					observationSiteLayer.visible = true;
+				}
+				else
+				{
+					observationSiteLayer.visible = false;
+				}
+			}
+			
+			//HTTPService回调，获取数据
+			protected function httpServicesResultHandler(event:ResultEvent):void
+			{
+				if(event.result is XML)
+				{
+					var xml:XML = event.result as XML;
+					
+					for each(var observationSite:XML in xml.ObservationSite)
+					{
+						//图片
+						var graphic:Graphic = new Graphic();
+						var pt:MapPoint = WebMercatorUtil.geographicToWebMercator(new MapPoint(observationSite.pt.@x,observationSite.pt.@y)) as MapPoint;
+						graphic.geometry = pt;
+						var area:String = observationSite.@area;
+						var alias:String = observationSite.@alias;
+						graphic.attributes = {"area":area,"alias":alias};
+						graphic.toolTip = "点击显示" + observationSite.@area + "天气";
+						var pointSymbol:PictureMarkerSymbol = new PictureMarkerSymbol("assets/images/fb.png",25,42);
+						graphic.symbol = pointSymbol;
+						graphic.addEventListener(MouseEvent.MOUSE_OVER,graphicMouseOverListener);
+						graphic.addEventListener(MouseEvent.MOUSE_OUT,graphicMouseOutListener);
+						graphic.addEventListener(MouseEvent.CLICK,graphicMouseClickListener);
+						observationSiteLayer.add(graphic);
+						//文字
+						var graphicText:Graphic = new Graphic();
+						graphicText.geometry = pt;
+						var textformat:TextFormat = new TextFormat("Microsoft Yahei",14,null,false);
+						var textSymbol:TextSymbol = new TextSymbol(observationSite.@alias,null,0xff3030,1,false,0,false,16777215,"middle",0,0,-28,textformat);
+						graphicText.symbol = textSymbol;
+						observationSiteLayer.add(graphicText);
+					}
+					observationSiteLayer.refresh();
+				}
+			}
+			
+			protected function httpServicesFAULTHandler(event:FaultEvent):void
+			{
+				Alert.show("加载浮标数据出错！\n" + event.fault.faultString);
+			}
+			
+			//设置地图视图范围
+			protected function setMapExtent():void
+			{
+				map.level = 4;
+				map.centerAt(new MapPoint(13539878,2636324));
+			}
+			
+			protected function graphicMouseOverListener(event:MouseEvent):void
+			{
+				((event.currentTarget as Graphic).symbol as PictureMarkerSymbol).width=28;
+				((event.currentTarget as Graphic).symbol as PictureMarkerSymbol).height=47;
+				observationSiteLayer.refresh();
+			}
+			
+			protected function graphicMouseOutListener(event:MouseEvent):void
+			{
+				((event.currentTarget as Graphic).symbol as PictureMarkerSymbol).width=25;
+				((event.currentTarget as Graphic).symbol as PictureMarkerSymbol).height=42;
+				observationSiteLayer.refresh();
+			}
+			
+			protected function graphicMouseClickListener(event:MouseEvent):void
+			{
+				var obj:Object = (event.currentTarget as Graphic).attributes;
+				if(obj != null)
+				{
+					var site:String = obj.area;
+					currentSiteName = obj.alias;
+					buoyHome.getLatest(site);
+				}
+			}
+//			public function cb_showObservationSite_changeHandler(event:Event):void
+//			{
+//				observationSiteLayer.visible = cb_showObservationSite.selected;
+//				if(cb_showObservationSite.selected)
+//				{
+//					map.level = 4;
+//					map.centerAt(centerPoint);
+//				}
+//			}
+			protected function getLatest_resultHandler(event:ResultEvent):void
+			{
+				if(event.result != null)
+				{
+					var result:ArrayCollection = event.result as ArrayCollection;
+					var buoyLast:BuoyLast2 = result[0] as BuoyLast2;
+					observationSite_name.text = currentSiteName;
+					var dt:String = buoyLast.id.dateTime.fullYear + "-" 
+						+ (buoyLast.id.dateTime.month+1) + "-" 
+						+ buoyLast.id.dateTime.date + " " 
+						+ buoyLast.id.dateTime.hours + "时";
+					observationSite_date_time.text = dt;
+					observationSite_qw.text = buoyLast.qw!=-999?buoyLast.qw.toString():"无数据";
+					observationSite_qy.text = buoyLast.qy!=-999?buoyLast.qy.toString():"无数据";
+					observationSite_fs.text = buoyLast.fs!=-999?buoyLast.fs.toString():"无数据";
+					observationSite_fx.text = buoyLast.fx!=-999?buoyLast.fx.toString():"无数据";
+					observationSite_yxbg.text = buoyLast.yxbg!=-999?buoyLast.yxbg.toString():"无数据";
+					observationSite_zdbg.text = buoyLast.zdbg!=-999?buoyLast.zdbg.toString():"无数据";
+					observationSite_pjbx.text = buoyLast.pjbg!=-999?buoyLast.pjbg.toString():"无数据";
+					observationSite_yxbzq.text = buoyLast.yxbzw!=-999?buoyLast.yxbzw.toString():"无数据";
+					observationSite_bcsw.text = buoyLast.bcsw!=-999?buoyLast.bcsw.toString():"无数据";
+				}
+			}
+			protected function getLatest_faultHandler(event:FaultEvent):void
+			{
+				Alert.show("浮标无法加载","服务器异常", 4, null, null,errorLogo);
+			}
+			
+		]]>
+	</fx:Script>
+	<s:BorderContainer top="5" width="230" left="10" height="35" borderWeight="2"
+					   styleName="BorderContainer" >
+		<s:Label x="10" y="10"  styleName="LabelTitle" text="观测实况" />
+		<!--<s:Image x="145" y="4" source="assets/images/arrow-previous.png" />-->
+		<mx:LinkButton id="goBack" label="返回" styleName="LabelTitle" 
+					   y="3" right="10" click="goBack_clickHandler(event)" />
+	</s:BorderContainer>
+	<!--<s:BorderContainer top="45"  width="230" left="10" height="30"
+					   styleName="BorderContainer" >
+		<s:CheckBox id="cb_showObservationSite" x="60" y="2" label="显示观测浮标" selected="false" change="cb_showObservationSite_changeHandler(event)" />
+	</s:BorderContainer>-->
+	<mx:Grid left="10" top="45" width="230"  verticalScrollPolicy="auto">
+		<mx:GridRow width="100%" styleName="GridItem2">
+			<mx:GridItem colSpan="2" width="100%">
+				<s:Label id="observationSite_name" />
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem colSpan="2">
+				<s:Label id="observationSite_date_time" />
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem width="30%" styleName="GridItem2">
+				<s:Label text="气温(℃)" />
+			</mx:GridItem>
+			<mx:GridItem width="71%">
+				<s:Label id="observationSite_qw" />
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="气压(hPa)" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Label id="observationSite_qy" />
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="风速(m/s)" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Label id="observationSite_fs" />
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%">
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="方向" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Label id="observationSite_fx" />
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="有效波高(m)" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Label id="observationSite_yxbg" />
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="最大波高(m)" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Label id="observationSite_zdbg" />
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="平均波向" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Label id="observationSite_pjbx" />
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="有效波周期(s)" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Label id="observationSite_yxbzq" />
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" >
+			<mx:GridItem styleName="GridItem2">
+				<s:Label text="表层水温(℃)" />
+			</mx:GridItem>
+			<mx:GridItem>
+				<s:Label id="observationSite_bcsw" />
+			</mx:GridItem>
+		</mx:GridRow>
+	</mx:Grid>
+</s:Group>

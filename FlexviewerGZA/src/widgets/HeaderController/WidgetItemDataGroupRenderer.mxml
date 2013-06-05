@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     ////////////////////////////////////////////////////////////////////////////////
+     //
+     // Copyright (c) 2010 ESRI
+     //
+     // All rights reserved under the copyright laws of the United States.
+     // You may freely redistribute and use this software, with or
+     // without modification, provided you include the original copyright
+     // and use restrictions.  See use restrictions in the file:
+     // <install location>/License.txt
+     //
+     ////////////////////////////////////////////////////////////////////////////////
+-->
+<s:ItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009"
+                xmlns:s="library://ns.adobe.com/flex/spark"
+                xmlns:mx="library://ns.adobe.com/flex/mx"
+                autoDrawBackground="false"
+                buttonMode="true"
+                click="itemrenderer_clickHandler(event)"
+                dataChange="itemrenderer_dataChangeHandler(event)"
+                useHandCursor="true">
+
+    <fx:Declarations>
+        <s:Move3D id="moveEffect"
+                  duration="200"
+                  effectEnd="moveEffect_effectEndHandler(event)"
+                  repeatBehavior="reverse"
+                  repeatCount="2"
+                  target="{icon}"
+                  yBy="-4"
+                  yFrom="0"/>
+
+			<mx:Sequence id="onRollOver">
+				<mx:children>
+					<mx:Resize heightFrom="55"
+							   heightTo="65"
+							   widthFrom="55"
+							   widthTo="65"
+							   duration="100"/>
+					<mx:Glow id="glowImage"
+							 duration="500"
+							 alphaFrom="1.0"
+							 alphaTo="0.5"
+							 blurXFrom="0.0"
+							 blurXTo="10.0"
+							 blurYFrom="0.0"
+							 blurYTo="10.0"
+							 color="0x8bd3f9"/>				
+				</mx:children>
+			</mx:Sequence>
+			<mx:Sequence id="onRollOut">
+				<mx:children>
+					<mx:Resize heightFrom="65"
+							   heightTo="55"
+							   widthFrom="65"
+							   widthTo="55"
+							   duration="100"/>
+					<mx:Glow id="unglowImage"
+							 duration="500"
+							 alphaFrom="1.0"
+							 alphaTo="0"
+							 blurXFrom="10.0"
+							 blurXTo="0.0"
+							 blurYFrom="10.0"
+							 blurYTo="0.0"
+							 color="0x8bd3f9"/>
+				</mx:children>
+			</mx:Sequence>
+    </fx:Declarations>
+
+    <fx:Script>
+        <![CDATA[
+            import mx.events.EffectEvent;
+            import mx.events.FlexEvent;
+
+            private const WIDGET_ITEM_CLICK:String = "widgetItemClick";
+            private const WIDGET_ITEM_MOUSE_OVER:String = "widgetItemMouseOver";
+            private const WIDGET_ITEM_MOUSE_OUT:String = "widgetItemMouseOut";
+
+            [Bindable]
+            private var widgetItem:WidgetItem;
+
+            private function itemrenderer_dataChangeHandler(event:FlexEvent):void
+            {
+                widgetItem = data as WidgetItem;
+
+				icon.source = widgetItem.icon;
+                underline.visible = widgetItem.open;
+                underline.includeInLayout = widgetItem.open;
+            }
+
+            private function mouseOutHandler(event:MouseEvent):void
+            {
+                dispatchEvent(new Event(WIDGET_ITEM_MOUSE_OUT, true)); // bubbles
+            }
+
+            private function mouseOverHandler(event:MouseEvent):void
+            {
+                dispatchEvent(new Event(WIDGET_ITEM_MOUSE_OVER, true)); // bubbles
+            }
+
+            private function itemrenderer_clickHandler(event:MouseEvent):void
+            {
+                if (!WidgetItem(data).open)
+                {
+                    moveEffect.end();
+                    moveEffect.play();
+                }
+            }
+
+            private function moveEffect_effectEndHandler(event:EffectEvent):void
+            {
+                dispatchEvent(new Event(WIDGET_ITEM_CLICK, true)); // bubbles
+            }
+        ]]>
+    </fx:Script>
+
+    <s:VGroup width="70" height="70"
+              gap="2"
+              horizontalAlign="center"
+              verticalAlign="middle">
+		
+        <mx:Image id="icon" rollOverEffect="{onRollOver}" rollOutEffect="{onRollOut}"
+                  width="55" height="55"
+                  buttonMode="true"
+                  mouseOut="mouseOutHandler(event)"
+                  mouseOver="mouseOverHandler(event)"
+                  smoothBitmapContent="true"
+                  useHandCursor="true"/>
+        <mx:HRule id="underline" 
+                  width="10"
+                  strokeColor="{getStyle('focusColor')}"/>
+    </s:VGroup>
+
+</s:ItemRenderer>

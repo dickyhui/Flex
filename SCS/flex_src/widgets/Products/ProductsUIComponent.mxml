@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:SkinnableContainer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 creationComplete="group1_creationCompleteHandler(event)"
+		 xmlns:PredictionPaper="widgets.Products.PredictionPaper.*"
+		 xmlns:SeaArea="widgets.Products.SeaArea.*"
+		 xmlns:LawEnforceSeaArea="widgets.Products.LawEnforceSeaArea.*"
+		 xmlns:NumericalPrediction="widgets.Products.NumericalPrediction.*"
+		 xmlns:ObservationSite="widgets.Products.ObservationSite.*" 
+		 xmlns:Typhoon="widgets.Products.Typhoon.*" 
+		 xmlns:ControlUtil="widgets.Products.ControlUtil.*" >
+	<fx:Declarations>
+		<s:Fade id="fadeAdd"  alphaFrom="0" alphaTo="1" duration="500" repeatCount="1" />
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Map;
+			import com.esri.ags.layers.ArcGISDynamicMapServiceLayer;
+			import com.esri.ags.layers.Layer;
+			import com.esri.viewer.AppEvent;
+			
+			import mx.core.FlexGlobals;
+			import mx.events.FlexEvent;
+			[Bindable]
+			public var map:Map;
+			
+			protected function group1_creationCompleteHandler(event:FlexEvent):void
+			{
+				toggleIcon.addEventListener(MouseEvent.CLICK, toggleIcon_clickHandler);
+				//监听事件
+				//从登陆界面到地图主页面动画完成后的分发事件
+				//点击header的事件，打开相应的产品界面
+				AppEvent.addListener(AppEvent.CHANGEPRODUCTVIEW,onChangeProductView);
+			}
+			
+			private function onChangeProductView(event:AppEvent):void
+			{
+				currentState='expanded';
+				if(event.data is String)
+				{
+					var product:DisplayObject = this[event.data as String] as DisplayObject;
+					if(product.visible == false)
+					{
+						changeView(product);
+					}
+				}
+				else if(event.data is DisplayObject)
+				{
+					var product:DisplayObject = event.data as DisplayObject
+					if(product.visible == false)
+					{
+						changeView(product);
+					}
+				}
+			}
+			
+			private function toggleIcon_clickHandler(event:MouseEvent):void
+			{
+				currentState = (currentState == "collapsed") ? "expanded" : "collapsed";
+			}
+			
+			protected function changeView(product:DisplayObject):void
+			{
+				setProductsVisibility();
+				
+				fadeAdd.target = product;
+				fadeAdd.end();
+				fadeAdd.play();// 显示动画
+				
+				if(product.hasOwnProperty("changeFunction"))
+				{
+					(product as Object).changeFunction();
+				}
+			}
+			
+			protected function goBacktoMainHandler(event:Event):void
+			{
+				(event.currentTarget as DisplayObject).visible = false;
+				productMain.visible = true;
+				
+				fadeAdd.target = productMain;
+				fadeAdd.end();
+				fadeAdd.play();// 显示动画
+			}
+			
+			private function setProductsVisibility():void
+			{
+				predictionPaper.visible = false;
+				
+				seaArea.visible = false;
+				seaArea.setLayerVisibility(false);
+				
+				lawEnforceSeaArea.visible = false;
+				
+				numericalPrediction.visible = false;
+				numericalPrediction.removeExistLayers();
+				
+				observationSite.visible = false;
+				observationSite.setLayerVisibility(false);
+				
+				typhoon.visible = false;
+				typhoon.removeTyphoonLayer();
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<s:Fade
+			id="onRollOverAlpha"
+			duration="400"
+			alphaFrom="0.4"
+			alphaTo="1"/>
+		<s:Fade
+			id="onRollOutAlpha"
+			duration="400"
+			alphaFrom="1"
+			alphaTo="0.4"/>
+	</fx:Declarations>
+	<s:states>
+		<s:State name="collapsed"/>
+		<s:State name="expanded"/>
+	</s:states>
+	
+	<s:transitions>
+		<s:Transition fromState="*" toState="*">
+			<s:Sequence>
+				<s:Resize duration="800" target="{viewBox}"/>
+				<s:Rotate angleBy="180"  
+						  autoCenterTransform="true"
+						  duration="50"
+						  target="{toggleIcon}"/>
+			</s:Sequence>
+		</s:Transition>
+	</s:transitions>
+	
+	<s:BorderContainer id="viewBox" 
+					   width.collapsed="{toggleIcon.width}" width.expanded="{250+toggleIcon.width}" 
+					   height.collapsed="100%" height.expanded="100%"
+					   backgroundAlpha="0" borderVisible="false">
+		<s:BorderContainer right="-1" height="100%" width="{viewBox.width - toggleIcon.width}"
+						   styleName="ProductBorderContainer" >
+			<s:Group id="productMain" height="100%">
+				<!--<s:BorderContainer styleName="BorderContainer" 
+								   left="10" top="5"  width="230" height="116"
+								   visible="true" borderWeight="2" >
+					<s:Image x="10" y="5"  source="assets/images/typhoon.png" />
+					<mx:LinkButton  x="40" y="5" label="台风警报" click="changeView(this.typhoon)" />
+					<s:Image x="120" y="5"  source="assets/images/Wheather.png" />
+					<mx:LinkButton  x="150" y="5" label="近海预报" click="changeView(this.seaArea)" />
+					<s:Image x="11" y="38"  source="assets/images/fb_blue.png" />
+					<mx:LinkButton  x="40" y="45" label="观测实况" click="changeView(this.observationSite)" />
+					<s:Image x="120" y="45" source="assets/images/flag.png" />
+					<mx:LinkButton  x="150" y="45" label="执法海域" click="changeView(this.lawEnforceSeaArea)" />
+					<s:Image x="10" y="85" source="assets/images/document-text.png" />
+					<mx:LinkButton  x="40" y="85" label="预报单" click="changeView(this.predictionPaper)" />
+					<s:Image x="120" y="85" source="assets/images/poll.png" />
+					<mx:LinkButton  x="150" y="85" label="数值产品" click="changeView(this.numericalPrediction)" />
+				</s:BorderContainer>-->
+			</s:Group>
+			<PredictionPaper:PredictionPaper id="predictionPaper" visible="false" GoBacktoMain="goBacktoMainHandler(event)" />
+			<SeaArea:SeaArea id="seaArea" visible="false"  GoBacktoMain="goBacktoMainHandler(event)" />
+			<LawEnforceSeaArea:LawEnforceSeaArea id="lawEnforceSeaArea" visible="false" GoBacktoMain="goBacktoMainHandler(event)" />
+			<NumericalPrediction:NumericalPrediction id="numericalPrediction" visible="false" GoBacktoMain="goBacktoMainHandler(event)" />
+			<ObservationSite:ObservationSite id="observationSite" visible="false" GoBacktoMain="goBacktoMainHandler(event)" />
+			<Typhoon:Typhoon id="typhoon" visible="false" GoBacktoMain="goBacktoMainHandler(event)" />
+
+ 		</s:BorderContainer>
+		<s:VGroup width="{toggleIcon.width}" height="100%"
+				  verticalAlign="middle">
+				<mx:Image id="toggleIcon"
+						  width="48" height="48"
+						  buttonMode="true"
+						  smoothBitmapContent="true"
+						  source="assets/images/navigation-left.png"
+						  alpha="0.4"
+						  rollOutEffect="{onRollOutAlpha}"
+						  rollOverEffect="{onRollOverAlpha}"
+						  useHandCursor="true"/>
+		</s:VGroup>
+	</s:BorderContainer>
+</s:SkinnableContainer>

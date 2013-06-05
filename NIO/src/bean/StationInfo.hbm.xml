@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<!-- Generated 2013-4-1 20:56:46 by Hibernate Tools 3.4.0.CR1 -->
+<hibernate-mapping>
+    <class name="bean.StationInfo" table="STATION_INFO">
+        <composite-id name="id" class="bean.StationInfoId">
+            <key-property name="fromdate" type="string">
+                <column name="FROMDATE" length="10" />
+            </key-property>
+            <key-property name="currentdate" type="string">
+                <column name="CURRENTDATE" length="10" />
+            </key-property>
+            <key-property name="station" type="string">
+                <column name="STATION" length="10" />
+            </key-property>
+        </composite-id>
+        <property name="qw" type="string">
+            <column name="QW" length="10">
+                <comment>&#206;&#194;&#182;&#200;</comment>
+            </column>
+        </property>
+        <property name="fx" type="string">
+            <column name="FX" length="10">
+                <comment>&#183;&#231;&#207;&#242;</comment>
+            </column>
+        </property>
+        <property name="fs" type="string">
+            <column name="FS" length="10">
+                <comment>&#183;&#231;&#203;&#217;</comment>
+            </column>
+        </property>
+        <property name="njd" type="string">
+            <column name="NJD" length="10">
+                <comment>&#196;&#220;&#188;&#251;&#182;&#200;</comment>
+            </column>
+        </property>
+    </class>
+</hibernate-mapping>

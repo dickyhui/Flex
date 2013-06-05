@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<configuration>
+	<changguiyubao>
+   		<richang> /gza_website/Data/PredictionPaper/richang/yyyy年MM月dd日hh_中交股份联合体港珠澳大桥岛隧工程项目总经理部.pdf </richang>
+   		<xunyubao> /gza_website/Data/PredictionPaper/xunyubao/港珠澳yyyyMMxx.pdf </xunyubao>
+   		<yueyubao> /gza_website/Data/PredictionPaper/yueyubao/港珠澳yyyyMM.pdf </yueyubao>
+   	</changguiyubao>
+   	<jingbao>
+   		<dafeng> /gza_website/Data/PredictionPaper/dafeng.bmp </dafeng>
+   		<qixuan> /gza_website/Data/PredictionPaper/qixuan/ </qixuan>
+   	</jingbao>
+    <ip> 202.121.180.148 </ip>
+</configuration>

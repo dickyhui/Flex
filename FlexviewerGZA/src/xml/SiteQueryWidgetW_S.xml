@@ -1,0 +1,42 @@
+<?xml version="1.0" ?>
+<configuration>
+	<itemE>
+		<name>WEATHER_STATION</name>
+		<param>
+			PJQW
+			,PJXDSD
+			,FS&FX
+			,NJD
+			,QY
+			,SW
+			,JS
+		</param>
+	</itemE>
+	<itemC>
+		<name>WEATHER_STATION</name>
+		<param>
+			2m温度
+			,2m相对湿度
+			,10m风速风向
+			,水平能见度
+			,海平面气压
+			,海表温度
+			,降水
+		</param>
+	</itemC>
+	<itemU>
+		<name>WEATHER_STATION</name>
+		<param>
+			℃
+			,%
+			,m/s
+			,km
+			,hPa
+			,℃
+			,mm
+		</param>
+	</itemU>
+	<ServerIP> 202.121.180.148 </ServerIP>
+</configuration>
+
+	

@@ -1,0 +1,549 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewer:BaseWidget xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx" 
+				   xmlns:viewer="com.esri.viewer.*"
+				   creationComplete="creationCompleteHandler(event)"
+				   minWidth="900" right="200" top="100">
+	<fx:Declarations>
+		<s:RemoteObject id="stationInfoHome" destination="stationInfoHome" channelSet="{new ChannelSet(['my-amf','my-polling-amf'])}">
+			<s:method name="getStationData" result="getStationData_resultHandler(event)" fault="getStationData_faultHandler(event)" />
+		</s:RemoteObject>
+	</fx:Declarations>
+	<viewer:states>
+		<s:State name="statezoomout" />
+		<s:State name="statezoomin" />
+	</viewer:states>
+	<viewer:transitions>
+		<s:Transition  toState="statezoomout">
+			<s:Resize target="{wTemplate}" widthTo="850" heightTo="400" duration="300"/>
+		</s:Transition>	
+		<s:Transition  toState="statezoomin">
+			<s:Resize target="{wTemplate}" widthTo="1200" heightTo="600" duration="300"/>
+		</s:Transition>	
+	</viewer:transitions>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Graphic;
+			import com.esri.ags.geometry.MapPoint;
+			import com.esri.ags.layers.GraphicsLayer;
+			import com.esri.ags.symbols.PictureMarkerSymbol;
+			import com.esri.ags.symbols.TextSymbol;
+			import com.esri.ags.utils.WebMercatorUtil;
+			import com.esri.viewer.AppEvent;
+			
+			import mx.charts.HitData;
+			import mx.charts.chartClasses.IChartElement2;
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.FlexGlobals;
+			import mx.events.CalendarLayoutChangeEvent;
+			import mx.events.FlexEvent;
+			import mx.messaging.ChannelSet;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import spark.events.IndexChangeEvent;
+			[Bindable]
+			private var minValue_qw:Number = Number.POSITIVE_INFINITY;
+			[Bindable]
+			private var maxValue_qw:Number = Number.NEGATIVE_INFINITY;
+			[Bindable]
+			private var minValue_fs:Number = Number.POSITIVE_INFINITY;
+			[Bindable]
+			private var maxValue_fs:Number = Number.NEGATIVE_INFINITY;
+			[Bindable]
+			private var minValue_njd:Number = Number.POSITIVE_INFINITY;
+			[Bindable]
+			private var maxValue_njd:Number = Number.NEGATIVE_INFINITY;
+			[Embed(source="assets/images/Error.png")]
+			private var errorLogo:Class;
+			[Bindable]
+			private var station_Date_Source:ArrayCollection = new ArrayCollection();
+			
+			private var zhandianGraphicsLayer:GraphicsLayer = new GraphicsLayer();
+			protected function getStationData_resultHandler(event:ResultEvent):void
+			{
+				if(event.result != null)
+				{
+					station_Date_Source.removeAll();
+					initMaxMinValues();
+					for each(var stationInfo:StationInfo in event.result)
+					{
+						station_Date_Source.addItem({
+							"qw":Number(stationInfo.qw),
+							"speed":Number(stationInfo.fs),
+							"direct":Number(stationInfo.fx),
+							"njd":Number(stationInfo.njd),
+							"date":stationInfo.id.currentdate.substr(4,6)});
+						if(minValue_qw > Number(stationInfo.qw)) minValue_qw = Number(stationInfo.qw);
+						if(maxValue_qw < Number(stationInfo.qw)) maxValue_qw = Number(stationInfo.qw);
+						if(minValue_fs > Number(stationInfo.fs)) minValue_fs = Number(stationInfo.fs);
+						if(maxValue_fs < Number(stationInfo.fs)) maxValue_fs = Number(stationInfo.fs);
+						if(minValue_njd > Number(stationInfo.njd)) minValue_njd = Number(stationInfo.njd);
+						if(maxValue_njd < Number(stationInfo.njd)) maxValue_njd = Number(stationInfo.njd);
+					}
+				}
+			}
+			
+			private function initMaxMinValues():void
+			{
+				minValue_qw = Number.POSITIVE_INFINITY;
+				maxValue_qw = Number.NEGATIVE_INFINITY;
+				minValue_fs = Number.POSITIVE_INFINITY;
+				maxValue_fs = Number.NEGATIVE_INFINITY;
+				minValue_njd = Number.POSITIVE_INFINITY;
+				maxValue_njd = Number.NEGATIVE_INFINITY;
+			}
+			protected function getStationData_faultHandler(event:FaultEvent):void
+			{
+				Alert.show("数据库中无该时间数据", "数据缺失！", 4, null, null,errorLogo);
+			}
+			
+			protected function lineChartStatistics_updateCompleteHandler(event:FlexEvent):void
+			{
+				var graphics:Graphics = event.currentTarget.graphics;
+				graphics.clear();
+				graphics.lineStyle(3,0xff0000);
+				
+				var items:Array = event.currentTarget.items as Array;
+				
+				var alertY:Number = IChartElement2(lineSeries_fsfx).dataToLocal(0,10.8).y;
+				//var alertXMin:Number = 
+				graphics.moveTo(items[0].x,alertY);
+				graphics.lineTo(items[items.length-1].x,alertY);
+				
+				graphics.lineStyle(2,0xffff00);
+				var constParam:Number = Math.PI/180;
+				var itemY:Number// = IChartElement2(lineSeries_fsfx).dataToLocal(0,minValue_fs).y - 30;
+				var item1:Object;
+				var lengthX:Number;//单位长度在x轴上的分量
+				var lengthY:Number;//单位长度在y轴上的分量
+				for each(var items1:Object in items)
+				{
+					item1 = items1.item;
+					if(item1.speed == 0)
+					{
+						continue;
+					}
+					itemY = IChartElement2(lineSeries_fsfx).dataToLocal(0,item1.speed).y;
+					lengthX = Math.sin(item1.direct* constParam);
+					lengthY = Math.cos(item1.direct* constParam);
+					
+					//主线长20，辅线场8，隔4
+					graphics.moveTo(items1.x,itemY);
+					graphics.lineTo(items1.x+20*lengthX,itemY-20*lengthY);
+					if(item1.speed<3)
+					{
+						graphics.moveTo(items1.x+16*lengthX,itemY-16*lengthY);
+						graphics.lineTo(items1.x+16*lengthX +4*lengthY,itemY-16*lengthY+4*lengthX);
+					}
+					else if(item1.speed>=17)
+					{
+						graphics.moveTo(items1.x+20*lengthX,itemY-20*lengthY);
+						graphics.lineTo(items1.x+20*lengthX +4*lengthY,itemY-20*lengthY+4*lengthX);
+						graphics.lineTo(items1.x+16*lengthX,itemY-16*lengthY);
+					}
+					else 
+					{
+						if(item1.speed>=3)
+						{
+							graphics.moveTo(items1.x+20*lengthX,itemY-20*lengthY);
+							graphics.lineTo(items1.x+20*lengthX +8*lengthY,itemY-20*lengthY+8*lengthX);
+						}
+						if(item1.speed>=7)
+						{
+							graphics.moveTo(items1.x+16*lengthX,itemY-16*lengthY);
+							graphics.lineTo(items1.x+16*lengthX +8*lengthY,itemY-16*lengthY+8*lengthX);
+						}
+						else if(item1.speed>=5)
+						{
+							graphics.moveTo(items1.x+16*lengthX,itemY-16*lengthY);
+							graphics.lineTo(items1.x+16*lengthX +4*lengthY,itemY-16*lengthY+4*lengthX);
+						}
+						if(item1.speed>=11)
+						{
+							graphics.moveTo(items1.x+12*lengthX,itemY-12*lengthY);
+							graphics.lineTo(items1.x+12*lengthX +8*lengthY,itemY-12*lengthY+8*lengthX);
+						}
+						else if(item1.speed>=9)
+						{
+							graphics.moveTo(items1.x+12*lengthX,itemY-12*lengthY);
+							graphics.lineTo(items1.x+12*lengthX +4*lengthY,itemY-12*lengthY+4*lengthX);
+						}
+						if(item1.speed>=15)
+						{
+							graphics.moveTo(items1.x+8*lengthX,itemY-8*lengthY);
+							graphics.lineTo(items1.x+8*lengthX +8*lengthY,itemY-8*lengthY+8*lengthX);
+						}
+						else if(item1.speed>=13)
+						{
+							graphics.moveTo(items1.x+8*lengthX,itemY-8*lengthY);
+							graphics.lineTo(items1.x+8*lengthX +4*lengthY,itemY-8*lengthY+4*lengthX);
+						}
+					}
+				}
+			}
+			
+			private function wTemplate_closeHandler(event:Event):void
+			{
+				zhandianGraphicsLayer.visible = false;
+			}
+			
+			private var doOnce:Boolean = false;
+			private function wTemplate_openHandler(event:Event):void
+			{
+				if(!doOnce)
+				{
+					doOnce = true;
+					stationInfoHome.getStationData("A","");
+				}
+				showZoomOutState();
+				
+				//切换到主面板视图
+				AppEvent.dispatch(AppEvent.CHANGEPRODUCTVIEW,"");
+				
+				zhandianGraphicsLayer.visible = true;
+				centerAtStation();
+			}
+			
+			private function centerAtStation():void
+			{
+				var stationPoint:MapPoint;
+				if(ddl_station_name.selectedItem=="B")
+				{
+					stationPoint = WebMercatorUtil.geographicToWebMercator(new MapPoint(73,8.3)) as MapPoint;
+				}
+				else
+				{
+					stationPoint = WebMercatorUtil.geographicToWebMercator(new MapPoint(92.72,11.67)) as MapPoint;
+				}
+				map.centerAt(stationPoint);
+			}
+			
+			private function wTemplate_minimizedHandler(event:Event):void
+			{
+				
+			}
+			
+			private function lbFunction(obj:Object,s:String):String
+			{
+				return s;
+			}
+			
+			protected function time_checkbox_changeHandler(event:Event):void
+			{
+				if(time_checkbox.selected == true)
+				{
+					startDate.enabled = false;
+				}
+				else
+				{
+					startDate.enabled = true;
+				}
+			}
+			
+			//chart bug的修复方法
+			//Flex 4.6 unable load module, if it contains a chart component.
+			override public function get moduleFactory():IFlexModuleFactory
+			{
+				return FlexGlobals.topLevelApplication.moduleFactory;
+			}
+			
+			protected function ddl_station_name_changeHandler(event:IndexChangeEvent):void
+			{
+				centerAtStation();
+				if(time_checkbox.selected)//最新预报
+				{
+					stationInfoHome.getStationData(ddl_station_name.selectedItem ,"");
+				}
+				else//指定时间
+				{
+					stationInfoHome.getStationData(ddl_station_name.selectedItem ,startDate.text);
+				}
+			}
+			
+			//change事件会执行两次
+			private var startDateText:String = "";
+			protected function startDate_changeHandler(event:CalendarLayoutChangeEvent):void
+			{
+				if(startDate.text != startDateText)
+				{
+					startDateText = startDate.text;
+					stationInfoHome.getStationData(ddl_station_name.selectedItem ,startDate.text);
+				}
+			}
+			protected function DataTipFunction(hitData:HitData):String
+			{
+				switch((hitData.element as Object).yField)
+				{
+					case "qw":
+						return "气温:"+hitData.item.qw +"℃\n" 
+						+ "时间:"+hitData.item.date;
+					case "njd":
+						return "能见度:"+hitData.item.njd +"KM\n" 
+						+ "时间:"+hitData.item.date;
+					case "speed":
+						return "风速:"+hitData.item.speed +"M/S\n" 
+						+"风向:"+hitData.item.direct +"°\n" 
+						+ "时间:"+hitData.item.date;
+					case "value1":
+						return hitData.item.value1+"M/S";
+				}
+				return "";
+			}
+			protected function creationCompleteHandler(event:FlexEvent):void
+			{
+				wTemplate.addTitlebarButton("assets/images/zoom_out_magnifier.png","缩小",showZoomOutState);
+				wTemplate.addTitlebarButton("assets/images/zoom_in_magnifier.png","放大",showZoomInState);
+				wTemplate.selectedTitlebarButtonIndex=0;
+				
+				addStationGraphics();
+			}
+			
+			private function addStationGraphics()
+			{
+				var textformat:TextFormat = new TextFormat("微软雅黑",16,null,false);
+				var graphicA:Graphic = new Graphic();
+				graphicA.geometry = WebMercatorUtil.geographicToWebMercator(new MapPoint(92.72,11.67));
+				graphicA.symbol = new PictureMarkerSymbol("assets/images/zhandian.png", 32, 32,0,16);
+				zhandianGraphicsLayer.add(graphicA);
+				var graphicAText:Graphic = new Graphic();
+				graphicAText.geometry = WebMercatorUtil.geographicToWebMercator(new MapPoint(92.72,11.67));
+				graphicAText.symbol = new TextSymbol("站点A",null,0x000000,1,false,0,false,16777215,"middle",0,0,-10,textformat);
+				zhandianGraphicsLayer.add(graphicAText);
+				var graphicB:Graphic = new Graphic();
+				graphicB.geometry = WebMercatorUtil.geographicToWebMercator(new MapPoint(73,8.3));
+				graphicB.symbol = new PictureMarkerSymbol("assets/images/zhandian.png", 32, 32,0,16);
+				zhandianGraphicsLayer.add(graphicB);
+				zhandianGraphicsLayer.visible = true;
+				var graphicBText:Graphic = new Graphic();
+				graphicBText.geometry = WebMercatorUtil.geographicToWebMercator(new MapPoint(73,8.3));
+				graphicBText.symbol = new TextSymbol("站点B",null,0x000000,1,false,0,false,16777215,"middle",0,0,-10,textformat);
+				zhandianGraphicsLayer.add(graphicBText);
+				map.addLayer(zhandianGraphicsLayer);
+			}
+			
+			private function showZoomOutState():void
+			{
+				currentState = "statezoomout";
+				wTemplate.selectedTitlebarButtonIndex=0;
+			}
+			
+			private function showZoomInState():void
+			{
+				currentState = "statezoomin";
+				wTemplate.selectedTitlebarButtonIndex=1;
+			}
+			
+			protected function columnSeries_updateCompleteHandler(event:FlexEvent):void
+			{
+				var graphics:Graphics = event.currentTarget.graphics;
+				graphics.clear();
+				graphics.lineStyle(3,0xff0000);
+				
+				var items:Array = event.currentTarget.items as Array;
+				
+				var alertY:Number = IChartElement2(columnSeries).dataToLocal(0,10).y;
+				graphics.moveTo(items[0].x,alertY);
+				graphics.lineTo(items[items.length-1].x,alertY);
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- Define custom Strokes. -->
+		<mx:SolidColorStroke id="s1" color="0x00ff00" weight="3" alpha="1"/>
+		<mx:SolidColorStroke id="s3" color="0xBBCCDD" weight="2" />
+	</fx:Declarations>
+	<viewer:WidgetTemplate id="wTemplate" 
+						   width.statezoomout="850" height.statezoomout="400" 
+						   width.statezoomin="1200" height.statezoomin="600"
+						   closed="wTemplate_closeHandler(event)" 
+						   open="wTemplate_openHandler(event)" 
+						   minimized="wTemplate_minimizedHandler(event)">
+		<s:Group width="100%" height="100%">
+			<s:layout>
+				<s:VerticalLayout horizontalAlign="center" verticalAlign="middle"/>
+			</s:layout>
+			<s:HGroup width="100%" height="30" verticalAlign="middle" horizontalAlign="center">
+				<s:Label text="站点:" />
+				<s:DropDownList id="ddl_station_name" width="55" dataProvider="{new ArrayCollection(['A','B'])}" selectedIndex="0" change="ddl_station_name_changeHandler(event)"/>
+				<s:Label text="起报时间:" />
+				<mx:DateField id="startDate" width="160" fontSize="13" selectedDate="{new Date()}" formatString="YYYYMMDD00" editable="false" enabled="false" change="startDate_changeHandler(event)" />
+				<s:CheckBox id="time_checkbox" label="最新预报" selected="true"  change="time_checkbox_changeHandler(event)"></s:CheckBox>
+			</s:HGroup>
+			<s:Group id="g_statics"
+					 width="100%" 
+					 height.statezoomin="500" height.statezoomout="300" 
+					 visible="true">
+				<s:layout>
+					<s:VerticalLayout horizontalAlign="center" verticalAlign="top"/>
+				</s:layout>
+				<mx:TabNavigator width="100%" height="100%" borderColor="0xffffff">
+					<s:NavigatorContent label="气温">
+						<s:VGroup horizontalAlign="center" width="100%" height="100%">
+							<s:Label  text="站点{ddl_station_name.selectedItem}气温"/>
+							<mx:LineChart  id="lineChartStatistics_qw"  
+										   height.statezoomin="440" height.statezoomout="240" 
+										   width="100%" 
+										   visible="true"  
+										   paddingRight="30"
+										   paddingLeft="10"
+										   showDataTips="true"
+										   selectionMode="single"
+										   dataProvider="{station_Date_Source}"
+										   dataTipFunction="{DataTipFunction}"
+										   >
+								<mx:backgroundElements>
+									<mx:GridLines gridDirection="horizontal">
+										<mx:horizontalStroke>
+											<mx:SolidColorStroke weight="1" color="0xBBCCDD"/>
+										</mx:horizontalStroke>
+									</mx:GridLines>
+								</mx:backgroundElements>
+								<mx:series>
+									<mx:LineSeries id="lineSeries_qw"
+												   xField="date" 
+												   yField="qw"
+												   alpha="1"
+												   form="curve"
+												   showDataEffect="slideEffect"
+												   lineStroke="{s1}" >
+									</mx:LineSeries>
+								</mx:series>
+								
+								<mx:horizontalAxis>					    		
+									<mx:CategoryAxis id="myXAxis_qw" categoryField="date" title="时间" />
+								</mx:horizontalAxis>
+								
+								<mx:horizontalAxisRenderers>
+									<mx:AxisRenderer axis="{myXAxis_qw}" labelFunction="lbFunction" labelAlign="center" canDropLabels="true" showLabels="true"  axisStroke="{s3}" tickStroke="{s3}" titleRenderer="{new ClassFactory(MyTextRenderer)}" />
+								</mx:horizontalAxisRenderers> 
+								
+								<mx:verticalAxis>
+									<mx:LinearAxis id="myYAxis_qw"  minimum="{minValue_qw}" maximum="{maxValue_qw}" title="气温(℃)"  />
+								</mx:verticalAxis>
+								
+								<mx:verticalAxisRenderers>
+									<mx:AxisRenderer id="myYAxisRender_qw" axis="{myYAxis_qw}" showLabels="true" titleRenderer="{new ClassFactory(MyTextRenderer)}"/>
+								</mx:verticalAxisRenderers>
+							</mx:LineChart>
+						</s:VGroup>
+					</s:NavigatorContent>
+					<s:NavigatorContent label="能见度">
+						<s:VGroup horizontalAlign="center" width="100%" height="100%">
+							<s:Label  text="站点{ddl_station_name.selectedItem}能见度"/>
+							<mx:ColumnChart id="columnChartStatistics_njd" 
+											height.statezoomin="440" height.statezoomout="240" 
+											width="100%" 
+											visible="true"  
+											paddingRight="30"
+											paddingLeft="10"
+											showDataTips="true"
+											selectionMode="single"
+											dataProvider="{station_Date_Source}"
+											dataTipFunction="{DataTipFunction}"
+											>   
+								<mx:backgroundElements>
+									<mx:GridLines gridDirection="horizontal">
+										<mx:horizontalStroke>
+											<mx:SolidColorStroke weight="1" color="0xBBCCDD"/>
+										</mx:horizontalStroke>
+									</mx:GridLines>
+								</mx:backgroundElements>
+								
+								<mx:series>
+									<mx:ColumnSeries 
+										id="columnSeries"
+										xField="date" 
+										yField="njd" 
+										stroke="{s1}"
+										updateComplete="columnSeries_updateCompleteHandler(event)"
+										/>
+								</mx:series>
+								
+								<mx:horizontalAxis>					    		
+									<mx:CategoryAxis id="myXAxis_njd" categoryField="date" title="时间" />
+								</mx:horizontalAxis>
+								
+								<mx:horizontalAxisRenderers>
+									<mx:AxisRenderer axis="{myXAxis_njd}" labelFunction="lbFunction" labelAlign="center" canDropLabels="true" showLabels="true"  axisStroke="{s3}" tickStroke="{s3}" titleRenderer="{new ClassFactory(MyTextRenderer)}" />
+								</mx:horizontalAxisRenderers> 
+								
+								<mx:verticalAxis>
+									<mx:LinearAxis id="myYAxis_njd"  minimum="{minValue_njd}" maximum="{maxValue_njd}" title="能见度(KM)"  />
+								</mx:verticalAxis>
+								
+								<mx:verticalAxisRenderers>
+									<mx:AxisRenderer id="myYAxisRender_njd" axis="{myYAxis_njd}" showLabels="true" titleRenderer="{new ClassFactory(MyTextRenderer)}"/>
+								</mx:verticalAxisRenderers>
+								
+							</mx:ColumnChart>
+						</s:VGroup>
+					</s:NavigatorContent>
+					<s:NavigatorContent label="风速风向">
+						<s:VGroup horizontalAlign="center" width="100%" height="100%">
+							<s:Label  text="站点{ddl_station_name.selectedItem}风速风向"/>
+							<mx:LineChart  id="lineChartStatistics_fsfx"  
+										   height.statezoomin="440" height.statezoomout="240" 
+										   width="100%" 
+										   visible="true"  
+										   paddingRight="30"
+										   paddingLeft="10"
+										   showDataTips="true"
+										   selectionMode="single"
+										   dataProvider="{station_Date_Source}"
+										   dataTipFunction="{DataTipFunction}"
+										   >
+								<mx:backgroundElements>
+									<mx:GridLines gridDirection="horizontal">
+										<mx:horizontalStroke>
+											<mx:SolidColorStroke weight="1" color="0xBBCCDD"/>
+										</mx:horizontalStroke>
+									</mx:GridLines>
+								</mx:backgroundElements>
+								<mx:series>
+									<!--<mx:LineSeries xField="date" 
+												   yField="value1"
+												   alpha="1"
+												   form="curve"
+												   showDataEffect="slideEffect" >
+										<mx:lineStroke>
+											<s:SolidColorStroke color="0xff0000" weight="3" alpha="1"  />
+										</mx:lineStroke>
+									</mx:LineSeries>-->
+									<mx:LineSeries id="lineSeries_fsfx"
+												   xField="date" 
+												   yField="speed"
+												   alpha="1"
+												   form="curve"
+												   showDataEffect="slideEffect"
+												   lineStroke="{s1}" 
+												   updateComplete="lineChartStatistics_updateCompleteHandler(event)">
+									</mx:LineSeries>
+								</mx:series>
+								
+								<mx:horizontalAxis>					    		
+									<mx:CategoryAxis id="myXAxis_fsfx" categoryField="date" title="时间" />
+								</mx:horizontalAxis>
+								
+								<mx:horizontalAxisRenderers>
+									<mx:AxisRenderer axis="{myXAxis_fsfx}" labelFunction="lbFunction" labelAlign="center" canDropLabels="true" showLabels="true"  axisStroke="{s3}" tickStroke="{s3}" titleRenderer="{new ClassFactory(MyTextRenderer)}" />
+								</mx:horizontalAxisRenderers> 
+								
+								<mx:verticalAxis>
+									<mx:LinearAxis id="myYAxis_fsfx"  minimum="{0.9*minValue_fs}" maximum="{1.1*maxValue_fs}" title="风速(M/S)"  />
+								</mx:verticalAxis>
+								
+								<mx:verticalAxisRenderers>
+									<mx:AxisRenderer id="myYAxisRender_fsfx" axis="{myYAxis_fsfx}" showLabels="true" titleRenderer="{new ClassFactory(MyTextRenderer)}"/>
+								</mx:verticalAxisRenderers>
+							</mx:LineChart>
+						</s:VGroup>
+					</s:NavigatorContent>
+				</mx:TabNavigator>
+			</s:Group>
+		</s:Group>
+	</viewer:WidgetTemplate>
+</viewer:BaseWidget>

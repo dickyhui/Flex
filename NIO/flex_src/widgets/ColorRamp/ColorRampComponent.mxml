@@ -1,0 +1,312 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+////////////////////////////////////////////////////////////////////////////////
+//
+// Copyright (c) 2010-2011 ESRI
+//
+// All rights reserved under the copyright laws of the United States.
+// You may freely redistribute and use this software, with or
+// without modification, provided you include the original copyright
+// and use restrictions.  See use restrictions in the file:
+// <install location>/License.txt
+//
+////////////////////////////////////////////////////////////////////////////////
+-->
+<s:SkinnableContainer xmlns:fx="http://ns.adobe.com/mxml/2009"
+					  xmlns:s="library://ns.adobe.com/flex/spark"
+					  xmlns:mx="library://ns.adobe.com/flex/mx"
+					  xmlns:esri="http://www.esri.com/2008/ags"
+					  creationComplete="init()" backgroundAlpha="0" >
+	<!-- this component is used by the OverviewMapWidget -->
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Map;
+			import com.esri.viewer.AppEvent;
+			import com.esri.viewer.ConfigData;
+			import com.esri.viewer.ViewerContainer;
+			
+			import mx.collections.ArrayCollection;
+			import mx.core.FlexGlobals;
+			import mx.events.EffectEvent;
+			
+			private var _openToolTip:String;
+			private var _closeToolTip:String;
+			
+			private var _imageSource:String;
+			private var theTitle:String;
+			
+			[Bindable]
+			private var _value1:Number=0;//max
+			[Bindable]
+			private var _value2:Number=0;
+			[Bindable]
+			private var _value3:Number=0;
+			[Bindable]
+			private var _value4:Number=0;
+			[Bindable]
+			private var _value5:Number=0;//min
+			[Bindable]
+			private var _value2of4:Number=0;
+			[Bindable]
+			private var _value3of4:Number=0;
+			
+			private var isTyphoon:Boolean = false;
+			
+			//在图例缩小之前的状态
+			private var stateBeforeCollapsed:String = "";
+			
+			private function init():void
+			{
+				
+				toggleIcon.addEventListener(MouseEvent.CLICK, toggleIcon_clickHandler);
+				//                viewBox.setStyle("contentBackgroundColor", getStyle('contentBackgroundColor'));
+			}
+			
+			private function toggleIcon_clickHandler(event:MouseEvent):void
+			{
+				//currentState = (currentState == "collapsed") ? "expanded" : "collapsed";
+				if(currentState == "collapsed")
+				{
+					if(stateBeforeCollapsed == "typhoon_expanded")
+					{
+						currentState = "typhoon_expanded";
+					}
+					else if(stateBeforeCollapsed == "expanded")
+					{
+						currentState = "expanded";
+					}
+					else if(stateBeforeCollapsed == "W10Contour")
+					{
+						currentState = "W10Contour";
+					}
+					else if(stateBeforeCollapsed == "blueredfucku")
+					{
+						currentState = "blueredfucku";
+					}
+					else 
+					{
+						currentState = "collapsed";
+					}
+				}
+				else 
+				{
+					currentState = "collapsed";
+				}
+			}
+			
+			public function ShowCollapsed():void
+			{
+				currentState = "collapsed"
+			}
+			
+			public function ShowExpanded():void
+			{
+				currentState = "expanded"
+				stateBeforeCollapsed = "expanded";
+			}
+			
+			public function ShowTyphoonExpanded():void
+			{
+				currentState = "typhoon_expanded"
+				stateBeforeCollapsed = "typhoon_expanded";
+			}
+			
+			public function ShowW10Contour():void
+			{
+				currentState = "W10Contour"
+				stateBeforeCollapsed = "W10Contour";
+			}
+			
+			public function Showblueredfucku():void
+			{
+				currentState = "blueredfucku"
+				stateBeforeCollapsed = "blueredfucku";
+			}
+			
+			public function set OpenToolTip(value:String):void
+			{
+				_openToolTip = value;
+			}
+			
+			[Bindable]
+			public function get OpenToolTip():String
+			{
+				return _openToolTip;
+			}
+			
+			public function set CloseToolTip(value:String):void
+			{
+				_closeToolTip = value;
+			}
+			
+			[Bindable]
+			public function get CloseToolTip():String
+			{
+				return _closeToolTip;
+			}
+			
+			public function set ImageSource(value:String):void
+			{
+				_imageSource = value;
+			}
+			
+			[Bindable]
+			public function get ImageSource():String
+			{
+				return _imageSource;
+			}
+			
+			public function set TheTitle(value:String):void
+			{
+				theTitle = value;
+			}
+			
+			[Bindable]
+			public function get TheTitle():String
+			{
+				return theTitle;
+			}
+			
+			public function set MaxValue(value:Number):void
+			{
+				_value1 = Number(value.toFixed(3));
+				SetOtherValues();
+			}
+			
+			[Bindable]
+			public function get MaxValue():Number
+			{
+				return _value1;
+			}
+			
+			public function set MinValue(value:Number):void
+			{
+				if(value<0.01&&value>0)
+				{
+					value = 0;
+				}
+				_value5 = Number(value.toFixed(3));
+				SetOtherValues();
+			}
+			
+			[Bindable]
+			public function get MinValue():Number
+			{
+				return _value5;
+			}
+			
+			private function SetOtherValues():void
+			{
+				if(_value1 != 0||_value5 != 0)
+				{
+					var interval:Number = (_value1-_value5)/4;
+					_value4 = interval + _value5;
+					_value3 = interval + _value4;
+					_value2 = interval + _value3;
+					
+					var intervalof4:Number = (_value1-_value5)/3;
+					_value3of4 = intervalof4 + _value5;
+					_value2of4 = intervalof4 + _value3of4;
+				}
+				else if(_value1 == _value5)
+				{
+					_value4 = _value1;
+					_value3 = _value1;
+					_value2 = _value1;
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<s:states>
+		<s:State name="collapsed"/><!--合拢图例状态-->
+		<s:State name="expanded"/><!--打开图例状态，这里指的是一般的产品图例-->
+		<s:State name="typhoon_expanded"/><!--打开台风图例状态-->
+		<s:State name="W10Contour"/><!--打开10m风场等值线(W10Contour)图例状态-->
+		<s:State name="blueredfucku"/>
+	</s:states>
+	
+	<s:transitions>
+		<s:Transition fromState="*" toState="*">
+			<s:Sequence >
+				<s:Resize duration="400" target="{viewBox}"/>
+				<s:Rotate angleBy="180"
+						  autoCenterTransform="true"
+						  duration="200"
+						  target="{toggleIcon}"/>
+			</s:Sequence>
+		</s:Transition>
+	</s:transitions>
+	
+	<s:BorderContainer id="viewBox"
+					   width.collapsed="{toggleIcon.width+35}" width.expanded="400" width.W10Contour="400" width.typhoon_expanded="300" 
+					   height.collapsed="{toggleIcon.height}" height.expanded="60" height.W10Contour="60" height.typhoon_expanded="125"
+					   color="{getStyle('contentBackgroundColor')}" 
+					   backgroundColor="{getStyle('contentBackgroundColor')}">
+		<s:layout>
+			<!--clipAndEnableScrolling: 如果是true，则将超出范围的children裁掉不显示出来 -->
+			<s:BasicLayout clipAndEnableScrolling="true" />
+		</s:layout>
+		<mx:Image id="colorRampImage"
+				  width.expanded="400" width.W10Contour="400"  width.typhoon_expanded="300" 
+				  height.expanded="60" height.W10Contour="60" height.typhoon_expanded="125"
+				  right="0" top="0"
+				  smoothBitmapContent="true"
+				  source="{ImageSource}"
+				  useHandCursor="true"
+				  />
+		<mx:Image id="toggleIcon"
+				  width="20" height="20"
+				  right="0" top="0"
+				  buttonMode="true"
+				  smoothBitmapContent="true"
+				  source="assets/images/i_cr_expand_white_r.png"
+				  toolTip.collapsed="{OpenToolTip}"
+				  toolTip="{CloseToolTip}"
+				  toolTip.typhoon_expanded="{CloseToolTip}"
+				  useHandCursor="true"
+				  visible = 'true'
+				  />
+		<s:VGroup width="100%" top="2" horizontalAlign="center" 
+				  visible="true"
+				  visible.collapsed="false">
+			<s:Label text="{TheTitle}" color="0xffffff" />
+		</s:VGroup>
+		<s:Group id="colorRampGroup" width="100%" right="25" top="3">
+			<s:Label text="图例" color="{getStyle('color')}" fontWeight="bold"/>
+		</s:Group>
+		<s:HGroup left="2" top="20" width="100%" height="18" visible="false" visible.expanded="false" visible.blueredfucku="true">
+			<mx:Spacer width="35" />
+			<s:Label text="{_value5.toPrecision(4)}" color="{getStyle('color')}" fontWeight="normal" />
+			<mx:Spacer width="100%" />
+			<s:Label text="{_value3of4.toPrecision(4)}" color="{getStyle('color')}" fontWeight="normal" />
+			<mx:Spacer width="100%" />
+			<s:Label text="{_value2of4.toPrecision(4)}" color="{getStyle('color')}" fontWeight="normal" />
+			<mx:Spacer width="100%" />
+			<s:Label text="{_value1.toPrecision(4)}" color="{getStyle('color')}" fontWeight="normal" />
+			<mx:Spacer width="35" />
+		</s:HGroup>
+		<s:HGroup left="2" top="20" width="100%" height="18" visible="false" visible.expanded="true" visible.blueredfucku="false">
+			<s:Label text="{_value5.toPrecision(3)}" color="{getStyle('color')}" fontWeight="normal" />
+			<mx:Spacer width="100%" />
+			<s:Label text="{_value4.toPrecision(3)}" color="{getStyle('color')}" fontWeight="normal" />
+			<mx:Spacer width="100%" />
+			<s:Label text="{_value3.toPrecision(3)}" color="{getStyle('color')}" fontWeight="normal" />
+			<mx:Spacer width="100%" />
+			<s:Label text="{_value2.toPrecision(3)}" color="{getStyle('color')}" fontWeight="normal" />
+			<mx:Spacer width="100%" />
+			<s:Label text="{_value1.toPrecision(3)}" color="{getStyle('color')}" fontWeight="normal" />
+		</s:HGroup>
+	</s:BorderContainer>
+	<s:Rect left="-1" right="-1" top="-1" bottom="-1">
+		<s:stroke>
+			<s:SolidColorStroke color="{getStyle('contentBackgroundColor')}" weight="1"/>
+		</s:stroke>
+	</s:Rect>
+	<s:Rect left="-3" right="-3" top="-3" bottom="-3">
+		<s:stroke>
+			<s:SolidColorStroke color="{getStyle('color')}" weight="2"/>
+		</s:stroke>
+	</s:Rect>
+</s:SkinnableContainer>

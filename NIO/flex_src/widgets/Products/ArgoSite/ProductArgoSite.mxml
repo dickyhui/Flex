@@ -1,0 +1,257 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Products:ProductBase xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					  xmlns:s="library://ns.adobe.com/flex/spark" 
+					  xmlns:mx="library://ns.adobe.com/flex/mx"
+					  xmlns:Products="widgets.Products.*"
+					  width="100%" height="100%"
+					  itemTitle="Argo"
+					  creationComplete="creationCompleteHandler(event)">
+	<fx:Declarations>
+		<s:RemoteObject id="argoMetaInfo" destination="argoMetaInfoHome" channelSet="{ new ChannelSet(['my-amf','my-polling-amf'])}" >
+			<s:method name="getArgoBasicInfo" result="Site_GetArgoBasicInfo_onResult(event)" fault="Site_GetArgoBasicInfo_onFault(event)"/>
+		</s:RemoteObject>
+		<s:Consumer id="argoUpdateComsumer" destination="argoInfoUpdate" 
+					channelSet="{ new ChannelSet(['my-streaming-amf'])}"   
+					message="argoUpdateComsumer_messageHandler(event.message)" />
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Graphic;
+			import com.esri.ags.Map;
+			import com.esri.ags.SpatialReference;
+			import com.esri.ags.geometry.MapPoint;
+			import com.esri.ags.geometry.Polyline;
+			import com.esri.ags.geometry.WebMercatorMapPoint;
+			import com.esri.ags.layers.GraphicsLayer;
+			import com.esri.ags.layers.Layer;
+			import com.esri.ags.symbols.PictureMarkerSymbol;
+			import com.esri.ags.symbols.SimpleLineSymbol;
+			import com.esri.ags.symbols.SimpleMarkerSymbol;
+			import com.esri.ags.symbols.Symbol;
+			import com.esri.ags.symbols.TextSymbol;
+			import com.esri.ags.utils.WebMercatorUtil;
+			import com.esri.viewer.AppEvent;
+			import com.esri.viewer.ViewerContainer;
+			import com.esri.viewer.WidgetStates;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.FlexGlobals;
+			import mx.events.FlexEvent;
+			import mx.messaging.Channel;
+			import mx.messaging.ChannelSet;
+			import mx.messaging.channels.AMFChannel;
+			import mx.messaging.events.MessageEvent;
+			import mx.messaging.messages.AsyncMessage;
+			import mx.messaging.messages.IMessage;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.utils.StringUtil;
+			
+			import spark.components.supportClasses.ItemRenderer;
+			
+			import widgets.HeaderController.HeaderItem;
+			import widgets.Products.ProductsWidgetXml;
+			
+			[Bindable]
+			private var graphicsLayer:GraphicsLayer;
+			[Bindable]
+			public var map:Map;
+			
+			protected function creationCompleteHandler(event:FlexEvent):void
+			{
+				this.map = ProductsWidgetXml.map;
+				//init();
+			}
+			public override function closeProductFunction():void
+			{
+				hideInfoWindow();
+				removeArgoTrackLayers();
+				graphicsLayer.visible = false;
+			}
+			public override function openProductFunctionEveryTime():void
+			{
+				map.zoomToInitialExtent();
+				graphicsLayer.visible = true;
+			}
+			public override function openProductFunctionOnce():void
+			{
+				init();
+			}
+			
+			private function init():void
+			{
+				graphicsLayer = new GraphicsLayer();
+				graphicsLayer.id = "SiteFeatures";
+				graphicsLayer.name = "Site Features";
+				map.addLayer(graphicsLayer);
+				cursorManager.removeAllCursors();
+				//初始化获取argo的基本信息
+				//channelSet="{ new ChannelSet(['my-amf','my-polling-amf'])}"   
+//				var channelSet:ChannelSet = new ChannelSet();
+//				var channel:AMFChannel = new AMFChannel("my-polling-amf","http://localhost:8080/NIO/messagebroker/amfpolling");
+//				channel.pollingEnabled = true;
+//				channel.pollingInterval = 3000;
+//				channelSet.addChannel(channel);
+//				argoMetaInfo.channelSet = channelSet;
+				argoMetaInfo.getArgoBasicInfo();
+				map.addEventListener(MouseEvent.CLICK,hideInfoWindowEvent);
+				//客户端订阅服务器端信息
+				//argoUpdateComsumer.subscribe();
+			}
+			
+			private function hideInfoWindowEvent(evt:MouseEvent):void
+			{
+				hideInfoWindow();
+			}
+			
+			//移除argo轨迹图
+			public function removeArgoTrackLayers():void
+			{
+				if(map==null) return;
+				var layerList:Array = new Array();
+				for each(var layer:Layer in map.layers)
+				{
+					if((layer is GraphicsLayer && layer.id.indexOf("ArgoTrack")!=-1))
+					{
+						layerList.push(layer);
+					}
+				}
+				for each(var layer:Layer in layerList)
+				{
+					map.removeLayer(layer);
+				}
+			}
+			
+			//初始化获取argo的基本信息，在地图上添加标志点
+			private function Site_GetArgoBasicInfo_onResult(evt:ResultEvent):void
+			{
+				if (evt.result)
+				{
+					var result:ArrayCollection = new ArrayCollection();
+					result = evt.result as ArrayCollection;
+					
+					for each(var o:Object in result)
+					{
+						//在地图上添加标志点
+						addArgoMarkerInMap(o as ArgoSiteAttribute);
+					}
+				}
+			}
+			
+			//在地图上添加标志点
+			private function addArgoMarkerInMap(site:ArgoSiteAttribute):void
+			{
+				var graphic:Graphic;
+				var graphicText:Graphic;
+				var markSymbol:Symbol; 
+				var textformat:TextFormat = new TextFormat("微软雅黑",16,null,false);
+				var txtSymbol:TextSymbol;
+				var siteCH:String = "";
+				siteCH = site.PLATFORM_NUMBER;
+				markSymbol = new PictureMarkerSymbol("assets/images/fb.png", 30, 50, 0, 25);
+				txtSymbol= new TextSymbol(siteCH,null,0x000000,1,false,0,false,16777215,"middle",0,0,-10,textformat);
+				graphic = getPointGraphic(Number(site.LONGITUDE),Number(site.LATITUDE),siteCH,markSymbol);
+				graphic.attributes = site;
+				graphicsLayer.add(graphic);//显示gif图标，同时添加mouseover事件监听
+				graphicText = getPointGraphic(Number(site.LONGITUDE),Number(site.LATITUDE),siteCH+"Text",txtSymbol,false);
+				graphicsLayer.add(graphicText);//显示字
+			}
+			
+			
+			private function Site_GetArgoBasicInfo_onFault(evt:FaultEvent):void
+			{
+				Alert.show("数据库连接出错，请重试..." + evt.message, "出错了！", 4, null, null);
+				return;
+			}
+			
+			//接收到服务器推送消息，执行更新操作
+			protected function argoUpdateComsumer_messageHandler(message:IMessage):void
+			{
+				if (message)
+				{
+					var body:ArrayCollection = new ArrayCollection();
+					body = message.body as ArrayCollection;
+					
+					for each(var o:Object in body)
+					{
+						//更新地图上标志点信息和位置
+						UpdateArgoInfo(o as ArgoUpdateAttribute);
+					}
+					graphicsLayer.refresh();
+				}
+			}
+			
+			private function UpdateArgoInfo(site:ArgoUpdateAttribute):void
+			{
+				var layer:Layer = map.getLayer("SiteFeatures");
+				if(layer != null)
+				{
+					//更新argo属性值
+					var attribute:ArgoSiteAttribute = (graphicsLayer.getChildByName(site.PLATFORM_NUMBER)as Graphic).attributes as ArgoSiteAttribute;
+					attribute.CYCLE_NUMBER = site.CYCLE_NUMBER;
+					attribute.LONGITUDE = site.LONGITUDE;
+					attribute.LATITUDE = site.LATITUDE;
+					attribute.DATE = site.DATE;
+					//更新argo坐标位置
+					UpdateArgoPosition(site.PLATFORM_NUMBER,Number(site.LONGITUDE),Number(site.LATITUDE));
+				}
+			}
+			private function UpdateArgoPosition(siteName:String,longitude:Number,latitude:Number):void
+			{
+				var mapPoint:MapPoint = geographicToMercator(new MapPoint(longitude,latitude));
+				//修改Argo图标的位置
+				(graphicsLayer.getChildByName(siteName)as Graphic).geometry = mapPoint;
+				//修改Argo文字的位置
+				(graphicsLayer.getChildByName(siteName+"Text")as Graphic).geometry = mapPoint;
+			}
+			
+			private function mouseOver(event:Event):void
+			{
+				var graphic:Graphic = event.currentTarget as Graphic;
+				var point:MapPoint = graphic.geometry as MapPoint;
+				var contentARGO:ArgoSiteInfoRender = new ClassFactory(ArgoSiteInfoRender).newInstance();
+				contentARGO.data = graphic.attributes as Object;
+				map.infoWindow.content = contentARGO;
+				map.infoWindow.content.owner = map;
+				map.infoWindow.closeButtonVisible = false;
+				map.infoWindow.show(point);
+			}
+			
+			private function hideInfoWindow():void
+			{
+				map.infoWindow.hide();
+			}
+			
+			private function getPointGraphic(x:Number,y:Number,name:String,symbol:Symbol,b:Boolean=true):Graphic
+			{
+				var gra:Graphic = new Graphic(geographicToMercator(new MapPoint(x,y,map.spatialReference)),symbol);
+				gra.name = name;
+				if(b)
+				{
+					gra.addEventListener(MouseEvent.MOUSE_OVER,mouseOver);
+				}
+				return gra;
+			}
+			private function geographicToMercator(geo:MapPoint):MapPoint
+			{
+				const web:MapPoint = WebMercatorUtil.geographicToWebMercator(geo) as MapPoint;
+				return web;
+			}
+//			public function cb_showArgoStie_changeHandler(event:Event):void
+//			{
+//				graphicsLayer.visible = cb_showArgoSite.selected;
+//				if(!cb_showArgoSite.selected)
+//				{
+//					hideInfoWindow();
+//					removeArgoTrackLayers();
+//				}
+//			}
+		]]>
+	</fx:Script>
+	<!--<s:BorderContainer top="45"  width="230" left="10" height="30"
+					   styleName="BorderContainer" >
+		<s:CheckBox id="cb_showArgoSite" x="60" y="2" label="显示Argo浮标" 
+					selected="true" change="cb_showArgoStie_changeHandler(event)" />
+	</s:BorderContainer>-->
+</Products:ProductBase>

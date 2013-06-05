@@ -1,0 +1,312 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewer:BaseWidget xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" 
+		   xmlns:viewer="com.esri.viewer.*"
+		   layout="absolute" width="450" height="295"
+		   widgetConfigLoaded="basewidget1_widgetConfigLoadedHandler(event)" 
+		   >
+	<fx:Declarations>
+		<mx:WebService id="PredictionPaperQuery" wsdl="{_wsURL}">
+			<mx:operation name="QiXuanQuery" fault="SiteQuery_QiXuanQuery_onFault(event)" result="SiteQuery_QiXuanQuery_onResult(event)" resultFormat="object"/>	
+		</mx:WebService>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.viewer.TotalInfo;
+			
+			import flash.net.navigateToURL;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.ArrayList;
+			import mx.controls.Alert;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import spark.events.IndexChangeEvent;
+			
+			[Embed(source="assets/images/Error.png")]
+			private var errorLogo:Class;
+			private var _richang:String = "";
+			private var _xunyubao:String = "";
+			private var _yueyubao:String = "";
+			//private var _dafeng:String = "";
+			private var _qixuan:String = "";
+			[Bindable]
+			private var _qixuanYEARArr:ArrayCollection = new ArrayCollection();
+			[Bindable]
+			private var _qixuanHAOArr:ArrayCollection = new ArrayCollection();
+			[Bindable]
+			private var _qixuanCIArr:ArrayCollection = new ArrayCollection();
+			[Bindable]
+			private var _qixuanTIMEArr:ArrayCollection = new ArrayCollection();
+			[Bindable]
+			private var _wsURL:String="";
+			private var _serverIP:String = "";
+			
+			protected function basewidget1_widgetConfigLoadedHandler(event:Event):void
+			{
+				if(configXML)
+				{
+					_serverIP = String(configXML.ip);
+					_wsURL = "http://" + _serverIP + "/GZA_WebService/GZA_WS_Site_For_Flex/Service.asmx?wsdl";
+					PredictionPaperQuery.loadWSDL(_wsURL);	
+					PredictionPaperQuery.QiXuanQuery("","","");
+					
+					_richang = "http://" + _serverIP + String(configXML.changguiyubao.richang);
+					_xunyubao = "http://" + _serverIP + String(configXML.changguiyubao.xunyubao);
+					_yueyubao = "http://" + _serverIP + String(configXML.changguiyubao.yueyubao);
+					//_dafeng = "http://" + _serverIP + String(configXML.jingbao.dafeng);
+					//_qixuan = "http://" +String(configXML.ip) + String(configXML.jingbao.qixuan);
+				}
+				
+				setSelectedDate();
+			}
+			
+			//设置默认的预报单时间
+			protected function setSelectedDate():void
+			{
+				//旬：9号上传中旬，19下旬，29下个月上旬。
+				var datexun:Date = new Date();
+				var xunIndex:int = 0;
+				if(datexun.date >= 9 && datexun.date < 19)
+				{
+					datexun.month++;
+					xunIndex = 1;
+				}
+				else if(datexun.date >= 19 && datexun.date < 29)
+				{
+					xunIndex = 2;
+				}
+				else if(datexun.date >= 29)
+				{
+					datexun.month++;
+					xunIndex = 0;
+				}
+				dateXun.selectedDate = datexun;
+				timeXun.selectedIndex = xunIndex;
+				
+				//月：26号下个月。
+				var dateyue:Date = new Date();
+				if(dateyue.date >= 26)
+				{
+					dateyue.month++;
+				}
+				dateYue.selectedDate = dateyue;
+			}
+			
+			protected function widgettemplate1_openHandler(event:Event):void
+			{
+				this.left = 20;
+				this.top = 130;
+			}
+
+			protected function widgettemplate1_minimizedHandler(event:Event):void
+			{
+				this.x = 0;
+				this.y = TotalInfo.pdf;
+			}
+
+
+			private function SiteQuery_QiXuanQuery_onFault(evt:FaultEvent):void
+			{
+				Alert.show("热带气旋警报数据查询出错" + evt.message , "出错！", 4, null, null,errorLogo);
+			}
+			
+			//例如查询条件为"2012" "" "" ""
+			//返回的结果
+			//year?2011;2012?1;2;3?1,2?2012030209
+			//查询条件为年，2012年总共有1、2、3号台风，1号台风有1、2次预报，1次预报的发布时间为2012030209
+			//选择最后一个
+			private function SiteQuery_QiXuanQuery_onResult(evt:ResultEvent):void
+			{
+				if(evt.result && evt.result != "" && (evt.result.toString().indexOf("?") != -1))
+				{
+					var paramArr:Array = evt.result.toString().split('?');
+					switch(paramArr[0])
+					{
+						case "none":
+							SetQiXuanDataSourcebyNone(paramArr[1].toString());
+						case "year":
+							SetQiXuanDataSourcebyYear(paramArr[2].toString());
+						case "hao":
+							SetQiXuanDataSourcebyHao(paramArr[3].toString());
+						case "ci":
+							SetQiXuanDataSourcebyCi(paramArr[4].toString());
+							break;
+						default:
+							break;
+					}
+				}
+			}
+			private function SetQiXuanDataSourcebyNone(year:String):void
+			{
+				_qixuanYEARArr = new ArrayCollection(year.split(';'));
+				TIMEQixuan.selectedIndex = -1;//flex的bug
+				YEARQixuan.selectedIndex = _qixuanYEARArr.length-1;//选择最后一个
+				//TIMEQixuan.validateNow();
+			}
+			private function SetQiXuanDataSourcebyYear(hao:String):void
+			{
+				_qixuanHAOArr = new ArrayCollection(hao.split(';'));
+				TIMEQixuan.selectedIndex = -1;//flex的bug
+				HAOQixuan.selectedIndex = _qixuanHAOArr.length-1;//选择最后一个
+				//TIMEQixuan.validateNow();
+			}
+			private function SetQiXuanDataSourcebyHao(ci:String):void
+			{
+				_qixuanCIArr = new ArrayCollection(ci.split(';'));
+				TIMEQixuan.selectedIndex = -1;//flex的bug
+				CIQixuan.selectedIndex = _qixuanCIArr.length-1;//选择最后一个
+				//TIMEQixuan.validateNow();
+			}
+			private function SetQiXuanDataSourcebyCi(time:String):void
+			{
+				_qixuanTIMEArr = new ArrayCollection(time.split(';'));
+				TIMEQixuan.selectedIndex = -1;//flex的bug
+				TIMEQixuan.selectedIndex = _qixuanTIMEArr.length-1;//选择最后一个
+				//TIMEQixuan.validateNow();
+			}
+			//日常预报查询
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				var ftArr:Array = dateRichang.text.split("/");
+				var richangtemp:String = _richang;
+				richangtemp = richangtemp.replace("yyyy",ftArr[0]).replace("MM",ftArr[1]).replace("dd",ftArr[2]).replace("hh",timeRichang.selectedItem);
+				navigateToURL(new URLRequest(encodeURI(richangtemp)),'_blank');
+			}
+
+			//旬预报查询
+			protected function button2_clickHandler(event:MouseEvent):void
+			{
+				var xunTime:String = "0" + (timeXun.selectedIndex+1).toString();
+				var ftArr:Array = dateXun.text.split("/");
+				var xuntemp:String = _xunyubao;
+				xuntemp = xuntemp.replace("yyyy",ftArr[0]).replace("MM",ftArr[1]).replace("xx",xunTime);
+				navigateToURL(new URLRequest(encodeURI(xuntemp)),'_blank');
+			}
+
+			//月预报查询
+			protected function button3_clickHandler(event:MouseEvent):void
+			{
+				var ftArr:Array = dateYue.text.split("/");
+				var yuetemp:String = _yueyubao;
+				yuetemp = yuetemp.replace("yyyy",ftArr[0]).replace("MM",ftArr[1]);
+				navigateToURL(new URLRequest(encodeURI(yuetemp)),'_blank');
+			}
+
+			//热带气旋警报查询
+			protected function button4_clickHandler(event:MouseEvent):void
+			{
+				if(YEARQixuan.selectedItem != undefined &&HAOQixuan.selectedItem != undefined &&CIQixuan.selectedItem != undefined &&TIMEQixuan.selectedItem != undefined )
+				{
+					_qixuan = "http://" + _serverIP + String(configXML.jingbao.qixuan) 
+						+ YEARQixuan.selectedItem + HAOQixuan.selectedItem + "_" +CIQixuan.selectedItem + "_" +TIMEQixuan.selectedItem + ".pdf";
+					navigateToURL(new URLRequest(encodeURI(_qixuan)),'_blank');
+				}
+				else
+				{
+					Alert.show("请选择正确的查询条件", "出错！", 4, null, null,errorLogo);
+				}
+			}
+
+			//根据热带气旋警报查询的年参数查询其他参数，默认第一个
+			protected function YEARQixuan_changeHandler(event:IndexChangeEvent):void
+			{
+				PredictionPaperQuery.QiXuanQuery(YEARQixuan.selectedItem,"","");
+			}
+			//根据热带气旋警报查询的号参数查询其他参数，默认第一个
+			protected function HAOQixuan_changeHandler(event:IndexChangeEvent):void
+			{
+				PredictionPaperQuery.QiXuanQuery(YEARQixuan.selectedItem,HAOQixuan.selectedItem,"");
+			}
+			//根据热带气旋警报查询的次参数查询其他参数，默认第一个
+			protected function CIQixuan_changeHandler(event:IndexChangeEvent):void
+			{
+				PredictionPaperQuery.QiXuanQuery(YEARQixuan.selectedItem,HAOQixuan.selectedItem,CIQixuan.selectedItem);
+			}
+
+		]]>
+	</fx:Script>
+
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<viewer:WidgetTemplate width="450" height="295" id="wt" open="widgettemplate1_openHandler(event)" minimized="widgettemplate1_minimizedHandler(event)" enableResizeButton="false">
+		<s:VGroup horizontalAlign="left" width="100%">
+			<s:Label text="现场综合预报:"  color="#ffff00" fontSize="13" />
+			<s:Group width="100%" height="120">
+				<s:Rect left="0" right="0" top="0" bottom="0">
+					<s:stroke>
+						<mx:SolidColorStroke alpha="0.5" 
+											 color="0xffffff"
+											 weight="1"/>
+					</s:stroke>
+				</s:Rect>
+				<s:HGroup x="0" y="10" verticalAlign="middle">
+					<mx:Spacer width="15" />
+					<s:Button label="日常预报" color="#A8F9B5" fontSize="13"   width="75" click="button1_clickHandler(event)"/>
+					<s:Label text="日期:" width="40" color="#A8F9B5" fontSize="12"   />
+					<mx:DateField id="dateRichang" width="110" selectedDate="{new Date()}" formatString="YYYY/MM/DD" editable="false"/>
+					<s:Label text="时次:" width="40" color="#A8F9B5" fontSize="12"   />
+					<s:DropDownList id="timeRichang" width="80" dataProvider="{new ArrayList(new Array('08时','14时'))}" selectedIndex="0"/>
+				</s:HGroup>
+				<s:Line x="0" y="40" width="100%">
+					<s:stroke>
+						<mx:SolidColorStroke alpha="0.5" 
+											 color="0xffffff"
+											 weight="1"/>
+					</s:stroke>
+				</s:Line>
+				<s:HGroup x="0" y="50" verticalAlign="middle">
+					<mx:Spacer width="15" />
+					<s:Button label="旬预报" color="#A8F9B5" fontSize="13"   width="75" click="button2_clickHandler(event)"/>
+					<s:Label text="月份:" width="40" color="#A8F9B5" fontSize="12"   />
+					<mx:DateField id="dateXun" width="110" formatString="YYYY/MM" editable="false"/>
+					<s:Label text="旬次:" width="40" color="#A8F9B5" fontSize="12"   />
+					<s:DropDownList id="timeXun" width="80" dataProvider="{new ArrayList(new Array('上旬','中旬','下旬'))}" selectedIndex="0"/>
+				</s:HGroup>
+				
+				<s:Line x="0" y="80" width="100%">
+					<s:stroke>
+						<mx:SolidColorStroke alpha="0.5" 
+											 color="0xffffff"
+											 weight="1"/>
+					</s:stroke>
+				</s:Line>
+				<s:HGroup x="0" y="90" verticalAlign="middle">
+					<mx:Spacer width="15" />
+					<s:Button label="月预报" color="#A8F9B5" fontSize="13"   width="75" click="button3_clickHandler(event)"/>
+					<s:Label text="月份:" width="40" color="#A8F9B5" fontSize="12"   />
+					<mx:DateField id="dateYue" width="110" formatString="YYYY/MM" editable="false"/>
+				</s:HGroup>
+			</s:Group>
+			
+			<s:Label text="警报:"  x="10" y="130" color="#ffff00" fontSize="13"  />
+			<s:Group width="100%"  x="10" y="150" height="70">
+				<s:Rect left="0" right="0" top="0" bottom="0">
+					<s:stroke>
+						<mx:SolidColorStroke alpha="0.5" 
+											 color="0xffffff"
+											 weight="1"/>
+					</s:stroke>
+				</s:Rect>
+				<s:HGroup x="0" y="10" verticalAlign="middle">
+					<mx:Spacer width="4" />
+					<s:Button label="热带气旋警报" color="#A8F9B5"  fontSize="13"  width="100" click="button4_clickHandler(event)"/>
+					<s:Label text="年:" width="17" color="#A8F9B5" fontSize="12"   />
+					<s:DropDownList id="YEARQixuan" width="70" dataProvider="{_qixuanYEARArr}" selectedIndex="0" change="YEARQixuan_changeHandler(event)"/>
+					<s:Label text="号:" width="17" color="#A8F9B5" fontSize="12"   />
+					<s:DropDownList id="HAOQixuan" width="70" dataProvider="{_qixuanHAOArr}" selectedIndex="0" change="HAOQixuan_changeHandler(event)"/>
+					<s:Label text="次:" width="17" color="#A8F9B5" fontSize="12"   />
+					<s:DropDownList id="CIQixuan" width="70" dataProvider="{_qixuanCIArr}" selectedIndex="0" change="CIQixuan_changeHandler(event)"/>
+				</s:HGroup>
+				<s:HGroup x="0" y="40" verticalAlign="middle">
+					<mx:Spacer width="110" />
+					<s:Label text="发布时间:" width="56" color="#A8F9B5" fontSize="12"   />
+					<s:DropDownList id="TIMEQixuan" width="130" dataProvider="{_qixuanTIMEArr}" selectedIndex="0"/>
+				</s:HGroup>
+			</s:Group>
+		</s:VGroup>
+	</viewer:WidgetTemplate>
+</viewer:BaseWidget>
